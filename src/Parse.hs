@@ -1,4 +1,5 @@
-module Parse where
+module Parse ( parseRules 
+			 ) where
 
 import qualified Rule as R
 import CG.Abs
@@ -18,4 +19,5 @@ data Env = Env { named :: [(String, R.TagSet)]
                , unnamed :: [R.TagSet] 
                , templates :: [(String, R.Context)] }
 
-foo = "foo"
+parseRules :: String -> String
+parseRules = id
