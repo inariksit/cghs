@@ -1,7 +1,9 @@
 module Rule where
 
+import Data.List ( intercalate )
 import Text.Printf ( printf )
-import Text.Regex.Base
+import Text.Regex.PCRE
+
 --------------------------------------------------------------------------------
 -- Rules
 
@@ -29,7 +31,7 @@ data Tag = Tag String
 		 | Lem String 
 		 | WF String 
 		 | Subreading Subpos Tag 
-		 | Rgx String String --TODO find some regex thing that works 
+		 | Rgx String 
 --		 | Rgx Regex String 
 		 | EOS | BOS deriving (Eq,Ord)
 
@@ -37,14 +39,14 @@ data Subpos = FromStart Int | FromEnd Int | Wherever
 
 -- | Following the conventions of vislcg3
 instance Show Tag where
-  show (WF str)   = printf "\"<%s>\"" str
-  show (Lem str)  = printf "\"%s\"" str
-  show (Rgx _r s) =  printf "\"%s\"r" s
-  show (Tag str)  = str
+  show (WF str)  = printf "\"<%s>\"" str
+  show (Lem str) = printf "\"%s\"" str
+  show (Rgx str) =  printf "\"%s\"r" str
+  show (Tag str) = str
   show (Subreading n tag)
-  				  = printf "%s+%s" (show n) (show tag)
-  show BOS        = ">>>"
-  show EOS        = "<<<"
+  				 = printf "%s+%s" (show n) (show tag)
+  show BOS       = ">>>"
+  show EOS       = "<<<"
 
 instance Show Subpos where
   show (FromStart n) = show n
@@ -91,3 +93,9 @@ data Polarity = Posi | Nega deriving (Eq,Ord)
 
 newtype OrList a = OrList { getOrList :: [a] } deriving (Eq,Ord)
 newtype AndList a = AndList { getAndList :: [a] } deriving (Eq,Ord)
+
+instance (Show a) => Show (AndList a) where
+  show = filter (/='"') . unwords . map show . getAndList
+
+instance (Show a) => Show (OrList a) where
+  show = filter (/='"') . intercalate " OR " . map show . getOrList
