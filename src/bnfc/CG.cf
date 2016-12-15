@@ -34,8 +34,10 @@ terminator Def "" ;
 
 SetDef. Def  ::= SetDecl ;
 
-Set.  SetDecl ::= "SET" SetName "=" TagSet ";" ;
-List. SetDecl ::= "LIST" SetName "=" [Tag] ";" ;
+Set.   SetDecl   ::= "SET" SetName "=" TagSet ";" ;
+List.  SetDecl   ::= "LIST" SetName "=" [Tag] ";" ;
+BList. SetDecl   ::= "LIST" ">>>" "=" ">>>" ";" ; -- grmbl magic tags
+EList. SetDecl   ::= "LIST" "<<<" "=" "<<<" ";" ; -- Should I have >>> as a set name or tag name ... at least this doesn't give me more errors!
 
 
 -- Templates are contextual tests identified by a name. 
@@ -51,9 +53,8 @@ SingleTempl. TemplDecl ::= "TEMPLATE" SetName "=" Cond1 ";" ;
 SetName.  SetName ::= UIdent ;
 SetMeta.  SetName ::= "<" UIdent ">" ;
 SetSynt.  SetName ::= "@" UIdent ;
-BOS.      SetName ::= ">>>" ;
-EOS.      SetName ::= "<<<" ;
 _.        SetName ::= "$$" SetName ; -- Unification; just read them as regular set names
+--_.        SetName ::= "(" SetName ")" ; maybe not
 
 
 --------------------------------------------------------------------------------
@@ -63,12 +64,15 @@ Lemma.   Tag1 ::= Str ;
 LemmaCI. Tag1 ::= Str "i" ; 
 Regex.   Tag1 ::= Str "r" ;
 Tag.     Tag1 ::= Id ;
-Named.   Tag1 ::= SetName ;
+BOS.     Tag1 ::= ">>>" ;
+EOS.     Tag1 ::= "<<<" ;
+--_.       Tag1 ::= "(" Tag ")" ;
 --_.       Tag1 ::= "+" Tag1 ; -- TODO what is this???
 
 coercions Tag 1 ; --This takes care of parenthesising one tag (which has no effect, can be done randomly). Parenthesising a list of tags will match the constructor AND, and that list has to be >1 tags.
 
 separator nonempty Tag "" ;
+--separator nonempty Tag "" ;
 
 ----------------------------------------------------------------------
 -- Rules: e.g.
@@ -129,6 +133,7 @@ Diff.    TagSet ::= TagSet1 "-" TagSet ;
 Cart.    TagSet ::= TagSet1 "+" TagSet ;
 All.     TagSet ::= "(*)" ;
 NilT.    TagSet1 ::= Tag ;
+Named.   TagSet1 ::= SetName ;
 
 coercions TagSet 1 ;
 
