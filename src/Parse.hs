@@ -160,24 +160,35 @@ transTagSet tagset = case tagset of
 
 transCond :: Cond -> State Env R.Context
 transCond cond = case cond of
+  -- Single contexts, barriers and set negations
   CondPos pos tags    -> do let (rpos,subr) = transPosition pos
                             ts <- transTagSet tags 
-                            return (R.Ctx rpos R.Posi (mapSubr subr ts))
-  CondNotPos pos tags -> neg `fmap` transCond (CondPos pos tags)
+                            return (R.Ctx rpos R.Yes (mapSubr subr ts))
   CondBarrier p t bt  -> do ctx <- transCond (CondPos p t)
                             btags <- transTagSet bt
                             return (addBar R.Barrier btags ctx)
-  CondNotBar p t bt   -> neg `fmap` transCond (CondBarrier p t bt)
   CondCBarrier p t bt -> do ctx <- transCond (CondPos p t)
                             btags <- transTagSet bt
                             return (addBar R.CBarrier btags ctx)
-  CondNotCBar p t bt  -> neg `fmap` transCond (CondCBarrier p t bt)
-  CondLinked conds    -> undefined
+  CondNotPos pos tags -> not_ `fmap` transCond (CondPos pos tags)
+  CondNotBar p t bt   -> not_ `fmap` transCond (CondBarrier p t bt)
+  CondNotCBar p t bt  -> not_ `fmap` transCond (CondCBarrier p t bt)
+
+  -- Complex contexts: negate, link and inline template 
+  CondNegate cond     -> R.Negate `fmap` transCond cond
+  CondLinked conds    -> link `fmap` mapM transCond conds
+  CondTemplInl templs -> do let conds = map (\(Template x) -> x) templs
+                            templ `fmap` mapM transCond conds
+
+-- Finally, named template is just retrieved from the environment.
   CondTemplate name   -> getSet templates (showSetName name)
-  CondTemplInl conds  -> undefined
+
   where 
-    neg :: R.Context -> R.Context
-    neg ctx = ctx { R.polarity = R.Nega }
+    link = R.Link . R.And
+    templ = R.Template . R.Or
+
+    not_ :: R.Context -> R.Context
+    not_ ctx = ctx { R.polarity = R.Not }
 
     addBar :: (R.TagSet -> R.Scan) -> R.TagSet -> R.Context -> R.Context
     addBar f tags ctx = let pos = (R.position ctx) { R.scan = f tags }
@@ -186,6 +197,7 @@ transCond cond = case cond of
     mapSubr :: Maybe R.Subpos -> R.TagSet -> R.TagSet
     mapSubr Nothing  ts = ts
     mapSubr (Just s) ts = R.Subreading s `fmap` ts
+
 
 transPosition :: Position -> (R.Position, Maybe R.Subpos)
 transPosition x = case x of

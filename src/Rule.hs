@@ -119,7 +119,7 @@ data Scan = Exactly
           | Barrier TagSet 
           | CBarrier TagSet deriving (Eq,Ord,Show)
 data Careful  = C | NC deriving (Eq,Ord,Show)
-data Polarity = Posi | Nega deriving (Eq,Ord,Show)
+data Polarity = Yes | Not deriving (Eq,Ord,Show)
 
 
 --------------------------------------------------------------------------------

@@ -103,8 +103,9 @@ CondCBarrier. Cond2 ::= Position TagSet "CBARRIER" TagSet ;
 CondNotBar.   Cond2 ::= "NOT" Position TagSet "BARRIER" TagSet ;
 CondNotCBar.  Cond2 ::= "NOT" Position TagSet "CBARRIER" TagSet ;
 CondTemplate. Cond2 ::= "T:" SetName ; --Can be linked: SELECT (tag) IF (1 foo LINK T:tmpl LINK 1* bar) ;
+CondLinked.   Cond1 ::= [Cond2] ; 
+CondNegate.   Cond  ::= "NEGATE" Cond1 ;
 
-CondLinked.   Cond1  ::= [Cond2] ; 
 CondTemplInl. Cond  ::= "(" [Template] ")" ; -- I think VISL CG-3 accepts it without parentheses.
 											  -- Whatever, this is a terribly easy preprocessing step,
 											  -- and saves me one shift/reduce conflict.
