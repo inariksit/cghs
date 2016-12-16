@@ -11,7 +11,7 @@ import Text.Regex.PCRE
 data Rule = 
     R { rtype :: RType 
       , target :: TagSet
-      , context :: OrList (AndList Context) 
+      , context :: AndList Context
       } deriving (Eq,Ord,Show)
 
 data RType = SELECT | REMOVE | IFF | ADD | MAP | SUBSTITUTE
@@ -90,11 +90,22 @@ instance Ord Subpos where
 --------------------------------------------------------------------------------
 -- Contextual tests
 
+-- There is a lot of list action happening here, instead of in Rule.
+-- Why is that? It's because of NEGATE: it's meaningful to negate a
+-- linked context, or a template (named at least, maybe also inline?).
+-- There's still a top level AndList Context in the Rule data type:
+-- those can be anything specified here.
+-- REMOVE Foo IF (-1 Bar)  -- regular Ctx
+--               (-2 Baz LINK 1 Quux LINK T:Xyzzy)  -- Link
+--               (NEGATE T:tmpl) -- Negate + Template
+--               ( (-1 Foo) OR (1 Bar) ); -- Inline template
+-- This rule has 3 contexts, and all of them must hold
 data Context = Ctx { position :: Position 
                    , polarity :: Polarity
                    , tags :: Set Tag 
                    } 
              | Link (AndList Context)
+             | Template (OrList Context) -- same for inline and named
              | Negate Context
              | Always deriving (Eq,Ord,Show)
 
