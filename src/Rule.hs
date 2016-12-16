@@ -20,23 +20,26 @@ data RType = SELECT | REMOVE | IFF | ADD | MAP | SUBSTITUTE
 --------------------------------------------------------------------------------
 -- Tags and tagsets
 
+type TagSet = Set Tag
 
-data TagSet = TagList (OrList (AndList Tag)) -- LIST Foo = foo ("<bar>" bar) baz
-            | Union TagSet TagSet            -- SET Baz = Foo | Bar
-            | Diff TagSet TagSet             -- SET Baz = Foo - Bar
-            | Cart TagSet TagSet             -- SET Baz = Foo + Bar
---            | SymDif TagSet TagSet             -- SET Baz = Foo ∆ Bar
---            | Inters TagSet TagSet             -- SET Baz = Foo ∩ Bar
-            | All deriving (Eq,Ord,Show)
+-- Specific structure for VISL CG-3 tag sets and lists.
+-- It's polymorphic just so that I can use fmap and stuff.
+data Set a = List (OrList (AndList a))    -- LIST Foo = foo ("<bar>" bar) baz
+            | Union (Set a) (Set a)       -- SET Baz = Foo | Bar
+            | Diff (Set a) (Set a)        -- SET Baz = Foo - Bar
+            | Cart (Set a) (Set a)        -- SET Baz = Foo + Bar
+--            | SymDif (Set a) (Set a)      -- SET Baz = Foo ∆ Bar
+--            | Inters (Set a) (Set a)      -- SET Baz = Foo ∩ Bar
+            | All deriving (Eq,Ord,Show)  -- (*)
 
 tagList :: Tag -> TagSet
-tagList tag = TagList (OrList [(AndList [tag])])
+tagList tag = List (Or [(And [tag])])
 
 bosSet :: TagSet
-bosSet = TagList (OrList [AndList [BOS]])
+bosSet = List (Or [And [BOS]])
 
 eosSet :: TagSet
-eosSet = TagList (OrList [AndList [EOS]])
+eosSet = List (Or [And [EOS]])
 
 data Tag = Tag String 
          | Lem String 
@@ -58,11 +61,15 @@ instance Show Tag where
   show BOS       = ">>>"
   show EOS       = "<<<"
 
+
 instance Show Subpos where
   show (FromStart n) = show n
   show (FromEnd   n) = show (-n)
   show Wherever = "*"
 
+-- TODO: we should know how many levels there are in total,
+-- in order to compare FromStart and FromEnd.
+-- Let's hope nobody writes grammars full of + and - subreadings.
 instance Eq Subpos where
   Wherever    == anywhere    = True
   anywhere    == Wherever    = True
@@ -85,8 +92,11 @@ instance Ord Subpos where
 
 data Context = Ctx { position :: Position 
                    , polarity :: Polarity
-                   , tags :: TagSet 
-                   } deriving (Eq,Ord,Show)
+                   , tags :: Set Tag 
+                   } 
+             | Link (AndList Context)
+             | Negate Context
+             | Always deriving (Eq,Ord,Show)
 
 data Position = Pos { scan :: Scan 
                     , careful :: Careful
@@ -103,20 +113,30 @@ data Polarity = Posi | Nega deriving (Eq,Ord,Show)
 
 -- I was just tired of using [[Tag]] and remembering if the outer is disjunction and inner conjunction or vice versa.
 -- More verbose but maybe less errors.
-newtype OrList a = OrList { getOrList :: [a] } deriving (Eq,Ord)
-newtype AndList a = AndList { getAndList :: [a] } deriving (Eq,Ord)
+newtype OrList a = Or { getOrList :: [a] } deriving (Eq,Ord)
+newtype AndList a = And { getAndList :: [a] } deriving (Eq,Ord)
 
 
 instance (Show a) => Show (AndList a) where
   show = filter (/='"') . unwords . map show . getAndList
+instance Functor AndList where
+  fmap f (And xs) = And (fmap f xs)
+instance Foldable AndList where
+  foldMap f (And xs) = foldMap f xs
 
 instance (Show a) => Show (OrList a) where
   show = filter (/='"') . intercalate " OR " . map show . getOrList
+instance Functor OrList where
+  fmap f (Or xs) = Or (fmap f xs)
+instance Foldable OrList where
+  foldMap f (Or xs) = foldMap f xs
 
--- to be able to use concat, concatMap etc. directly. (Hope this works :-P)
-instance Foldable (AndList) where
-  foldMap f (AndList xs) = foldMap f xs
 
-instance Foldable (OrList) where
-  foldMap f (OrList xs) = foldMap f xs
+instance Functor Set where
+  fmap f (List ts)      = List (fmap (fmap f) ts)
+  fmap f (Union ts ts') = Union (fmap f ts) (fmap f ts')
+  fmap f (Diff ts ts')  = Diff (fmap f ts) (fmap f ts')
+  fmap f (Cart ts ts')  = Cart (fmap f ts) (fmap f ts')
+  fmap f All            = All
+
 
