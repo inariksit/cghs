@@ -103,7 +103,10 @@ data Position = Pos { scan :: Scan
                     , pos :: Int 
                     } deriving (Eq,Ord,Show)
 
-data Scan     = Exactly | AtLeast | Barrier | CBarrier deriving (Eq,Ord,Show)
+data Scan = Exactly 
+          | AtLeast 
+          | Barrier TagSet 
+          | CBarrier TagSet deriving (Eq,Ord,Show)
 data Careful  = C | NC deriving (Eq,Ord,Show)
 data Polarity = Posi | Nega deriving (Eq,Ord,Show)
 

@@ -147,6 +147,7 @@ AtLeastPost. 	 Position ::= Signed "*" ;
 AtLPostCaut1. 	 Position ::= Signed "C*" ;
 AtLPostCaut2. 	 Position ::= "*" Signed "C" ;
 Cautious.    	 Position ::= Position "C" ; 
+--TODO: check if subreadings can be attached to a full position: e.g. -1C*/2 or 0C/*
 Subreading.  	 Position ::= Signed "/" Signed ;
 SubreadingStar.  Position ::= Signed "/" "*" ;
 
