@@ -1,4 +1,4 @@
-module Parse ( parseRules 
+module Parse ( parse
              ) where
 
 import qualified Rule as R
@@ -15,31 +15,33 @@ import Data.Maybe
 import Debug.Trace
 import Text.Regex.PCRE
 
+type Result = ([String], [[R.Rule]]) -- sections
 
-parseRules :: String -> ([String],[[R.Rule]]) -- sections
-parseRules s = case pGrammar (CG.Par.myLexer s) of
+parse :: String -> Result 
+parse s = case pGrammar (CG.Par.myLexer s) of
   Bad err  -> error err
-  Ok  tree -> let (rules,_env) = runState (parseCGRules tree) emptyEnv
-              in ( concatMap lefts rules     --map (show.snd) named env ++ map (show.snd) templates env
-                 , map rights rules )
+  Ok  tree -> let (rules,env) = runState (parseRules tree) emptyEnv
+              in ( map (show.snd) (tagsets env) ++ map (show.snd) (templates env)
+                 , rules )
 
 --------------------------------------------------------------------------------
 
 
-data Env = Env { named :: [(String, R.TagSet)]
-               , inline :: [R.TagSet] -- keep track of (unnamed) inline tag sets
+data Env = Env { rules ::[R.Rule]
+               , tagsets :: [(String, R.TagSet)]
+--               , inlineTagsets :: [R.TagSet] -- keep track of inline tag sets
                , templates :: [(String, R.Context)] }
 
 emptyEnv = Env [] [] []
 
-newSet :: (String,R.TagSet) -> State Env ()
-newSet x = modify $ \env -> env { named = x : named env }
+putRule :: R.Rule -> State Env ()
+putRule x = modify $ \env -> env { rules = x : rules env }
 
-newTempl :: (String,R.Context) -> State Env ()
-newTempl x = modify $ \env -> env { templates = x : templates env }
+putSet :: (String,R.TagSet) -> State Env ()
+putSet x = modify $ \env -> env { tagsets = x : tagsets env }
 
---newInlineSet :: R.TagSet -> State Env ()
---newInlineSet x = modify $ \env -> env { inline = x : inline env }
+putTempl :: (String,R.Context) -> State Env ()
+putTempl x = modify $ \env -> env { templates = x : templates env }
 
 getSet :: (Env -> [(String,a)]) -> String -> State Env a
 getSet f nm = do env <- gets f
@@ -50,36 +52,50 @@ getSet f nm = do env <- gets f
 
 --------------------------------------------------------------------------------
 
-parseCGRules :: Grammar -> State Env [[Either String R.Rule]]
-parseCGRules (Sections secs) = mapM parseSection secs
+--this is awkward, TODO fix it
+addDecl :: Def -> State Env (Either String R.Rule)
+addDecl (SetDef s)   = do transSetDecl s >>= putSet
+                          return (Left $ CG.Print.printTree s)
+addDecl (TemplDef t) = do transTemplDecl t >>= putTempl
+                          return (Left $ CG.Print.printTree t)
+addDecl (RuleDef r)  = do rl <- transRule r
+                          putRule rl
+                          return (Right rl)
 
-parseSection :: Section -> State Env [Either String R.Rule]
+parseRules :: Grammar -> State Env [[R.Rule]]
+parseRules (Sections secs) = mapM parseSection secs
+
+parseSection :: Section -> State Env [R.Rule]
 parseSection (Defs defs) =
- do mapM_ updateEnv defs 
-    --in case the grammar doesn't specify boundaries 
-    newSet (bosString, R.bosSet)
-    newSet (eosString, R.eosSet)
-    env <- get
-    parseAndModify env defs []
-                           
- where
-  parseAndModify :: Env -> [Def] -> [Either String R.Rule] -> State Env [Either String R.Rule]
-  parseAndModify e [] acc       = return acc
-  parseAndModify e (d:defs) acc = do let (e', strOrRl) = parseRules' e d
-                                     put e'
-                                     parseAndModify e' defs (strOrRl:acc)
-  
-  updateEnv :: Def -> State Env ()
-  updateEnv (RuleDef r)  = return ()
-  updateEnv (SetDef s)   = newSet =<< transSetDecl s
-  updateEnv (TemplDef t) = newTempl =<< transTemplDecl t
+ do putSet (bosString, R.bosSet) --in case the grammar doesn't specify boundaries 
+    putSet (eosString, R.eosSet)
+    rlsDefs <- mapM addDecl defs
+    return (rights rlsDefs)
+
+--------------------------------------------------------------------------------
+-- Rule
+
+transRule :: Rule -> State Env R.Rule
+transRule x = case x of
+  RemoveAlways nm sr tags  -> do let (name,subr) = (transName nm, transSubrTarget sr)
+                                 target <- mapSubr subr `fmap` transTagSet tags
+                                 return (R.R R.REMOVE name target always)
+  RemoveIf nm sr tags _ cs -> do let (name,subr) = (transName nm, transSubrTarget sr)
+                                 target <- mapSubr subr `fmap` transTagSet tags
+                                 ctx <- mapM transCond cs
+                                 return (R.R R.REMOVE name target (R.And ctx))
+  SelectAlways nm sr tags  -> select `fmap` transRule (RemoveAlways nm sr tags)
+  SelectIf nm sr tags x cs -> select `fmap` transRule (RemoveIf nm sr tags x cs)
+  MatchLemma str rule -> undefined
+
+  where
+    always = R.And [R.Always]
+    select rl = rl { R.rtype = R.SELECT}
+
+    transName (MaybeName1 (Id nm)) = R.Name nm
+    transName MaybeName2           = R.NoName
 
 
-  parseRules' :: Env -> Def -> (Env, Either String R.Rule)
-  parseRules' e (RuleDef  r) = let (r', e') = runState (transRule r) e
-                               in (e', Right r')
-  parseRules' e (SetDef   s) = (e, Left $ CG.Print.printTree s)
-  parseRules' e (TemplDef t) = (e, Left $ CG.Print.printTree t)
 
 --------------------------------------------------------------------------------
 -- Sets: BOS/EOS; simple names (Adj); syntactic tags (@OBJ); weird stuff (<;>)
@@ -109,11 +125,8 @@ transSetDecl setdecl =
 -- Templates: single or a list with ORs
 transTemplDecl :: TemplDecl -> State Env (String, R.Context)
 transTemplDecl templ = case templ of
-  SingleTempl nm cond  -> undefined -- (,) (showSetName nm) `fmap` transCond cond
-  ListTempl   nm conds -> undefined -- (,) (showSetName nm) `fmap` transTempls conds
---   where 
---    fromTemplate (Template cond) = cond
---    transTempls = transCondSet . map fromTemplate
+  SingleTempl nm cond  -> (,) (showSetName nm) `fmap` transCond cond
+  ListTempl   nm conds -> (,) (showSetName nm) `fmap` transCond (CondTemplInl conds)
 
 --------------------------------------------------------------------------------
 -- Tags and tagsets
@@ -145,18 +158,18 @@ transTag tag = case tag of
 
 transTagSet :: TagSet -> State Env R.TagSet
 transTagSet tagset = case tagset of
-  All          -> return R.All
-  NilT tag     -> return (R.List (R.Or [transTag tag]))
-  OR ts1 _ ts2 -> liftM2 R.Union (transTagSet ts1) (transTagSet ts2)
-  Diff ts1 ts2 -> liftM2 R.Diff (transTagSet ts1) (transTagSet ts2)
-  Cart ts1 ts2 -> liftM2 R.Diff (transTagSet ts1) (transTagSet ts2)
-  Named nm     -> getSet named (showSetName nm)
+  All         -> return R.All
+  NilT tag    -> return (R.List (R.Or [transTag tag]))
+  OR ts _ ts' -> liftM2 R.Union (transTagSet ts) (transTagSet ts')
+  Diff ts ts' -> liftM2 R.Diff (transTagSet ts) (transTagSet ts')
+  Cart ts ts' -> liftM2 R.Diff (transTagSet ts) (transTagSet ts')
+  Named nm    -> getSet tagsets (showSetName nm)
 
 
 
 
 --------------------------------------------------------------------------------
--- Contexts and positions
+-- Contextual tests
 
 transCond :: Cond -> State Env R.Context
 transCond cond = case cond of
@@ -194,9 +207,11 @@ transCond cond = case cond of
     addBar f tags ctx = let pos = (R.position ctx) { R.scan = f tags }
                         in ctx { R.position = pos }
 
-    mapSubr :: Maybe R.Subpos -> R.TagSet -> R.TagSet
-    mapSubr Nothing  ts = ts
-    mapSubr (Just s) ts = R.Subreading s `fmap` ts
+--------------------------------------------------------------------------------
+-- Positions and subreadings.
+-- Subreadings are awkward, I wanted them to be part of Tag in my data type.
+-- because when I parse Apertium tagged text, it's easier to match.
+-- Or maybe I didn't really think it through. Maybe change someday.
 
 
 transPosition :: Position -> (R.Position, Maybe R.Subpos)
@@ -220,10 +235,10 @@ transSubrTarget subr = case subr of
   SubrTarget num -> Just $ let i = read' num in
                     if i<0 then R.FromStart i else R.FromEnd i
 
+mapSubr :: Maybe R.Subpos -> R.TagSet -> R.TagSet
+mapSubr Nothing  ts = ts
+mapSubr (Just s) ts = R.Subreading s `fmap` ts
+
 read' :: Signed -> Int
 read' (Signed x) = read x
 
---------------------------------------------------------------------------------
--- Rule
-
-transRule = undefined

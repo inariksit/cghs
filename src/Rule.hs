@@ -10,12 +10,23 @@ import Text.Regex.PCRE
 
 data Rule = 
     R { rtype :: RType 
+      , rname :: RName
       , target :: TagSet
       , context :: AndList Context
-      } deriving (Eq,Ord,Show)
+      } deriving (Eq,Ord)
 
 data RType = SELECT | REMOVE | IFF | ADD | MAP | SUBSTITUTE
-   deriving (Eq,Show,Ord)
+  deriving (Eq,Ord,Show)
+
+data RName = Name String | NoName
+  deriving (Eq,Ord)
+
+instance Show RName where
+  show NoName   = []
+  show (Name s) = ':':s
+
+instance Show Rule where
+  show (R t n trg c) = printf "%s%s %s IF %s" (show t) (show n) (show trg) (show c)
 
 --------------------------------------------------------------------------------
 -- Tags and tagsets
@@ -36,10 +47,10 @@ tagList :: Tag -> TagSet
 tagList tag = List (Or [(And [tag])])
 
 bosSet :: TagSet
-bosSet = List (Or [And [BOS]])
+bosSet = tagList BOS
 
 eosSet :: TagSet
-eosSet = List (Or [And [EOS]])
+eosSet = tagList EOS
 
 data Tag = Tag String 
          | Lem String 
@@ -52,12 +63,12 @@ data Subpos = FromStart Int | FromEnd Int | Wherever
 
 -- | Following the conventions of vislcg3
 instance Show Tag where
-  show (WF str)  = printf "\"<%s>\"" str
-  show (Lem str) = printf "\"%s\"" str
-  show (Rgx str) =  printf "\"%s\"r" str
   show (Tag str) = str
+  show (Lem str) = printf "\"%s\"" str
+  show (WF str)  = printf "\"<%s>\"" str
+  show (Rgx str) =  printf "\"%s\"r" str
   show (Subreading n tag)
-                   = printf "%s+%s" (show n) (show tag)
+                 = printf "%s+%s" (show n) (show tag)
   show BOS       = ">>>"
   show EOS       = "<<<"
 
@@ -102,7 +113,7 @@ instance Ord Subpos where
 -- This rule has 3 contexts, and all of them must hold
 data Context = Ctx { position :: Position 
                    , polarity :: Polarity
-                   , tags :: Set Tag 
+                   , tags :: TagSet 
                    } 
              | Link (AndList Context)
              | Template (OrList Context) -- same for inline and named
