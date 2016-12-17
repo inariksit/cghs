@@ -80,14 +80,14 @@ separator nonempty Tag "" ;
 
 RuleDef. Def ::= Rule ;
 
-SelectIf.     Rule ::= SELECT TagSet MaybeIF [Cond] ";" ;
-RemoveIf.     Rule ::= REMOVE TagSet MaybeIF [Cond] ";" ;
-SelectAlways. Rule ::= SELECT TagSet ";" ;
-RemoveAlways. Rule ::= REMOVE TagSet ";" ;
+SelectIf.     Rule ::= "SELECT" MaybeName Subr TagSet MaybeIF [Cond] ";" ;
+RemoveIf.     Rule ::= "REMOVE" MaybeName Subr TagSet MaybeIF [Cond] ";" ;
+SelectAlways. Rule ::= "SELECT" MaybeName Subr TagSet ";" ;
+RemoveAlways. Rule ::= "REMOVE" MaybeName Subr TagSet ";" ;
 MatchLemma.   Rule ::= Str Rule ; --for some reason "<az>" SELECT foo ... doesn't work with String
 
-rules SELECT ::= "SELECT" MaybeName Subr ;
-rules REMOVE ::= "REMOVE" MaybeName Subr ;
+--rules SELECT ::=   ;
+--rules REMOVE ::= "REMOVE" MaybeName Subr ;
 
 rules MaybeIF   ::= "IF" | "if" | ;
 rules MaybeName ::= ":" Id | ;
