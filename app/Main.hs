@@ -9,7 +9,7 @@ main :: IO ()
 main = do args <- getArgs
           case args of
             [rls] -> do text <- readFile rls 
-                        let (defs,rules) = parse text
+                        let (defs,rules) = parse True text
                         mapM_ print defs
                         putStrLn ""
                         mapM_ (mapM_ print) rules

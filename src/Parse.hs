@@ -12,17 +12,27 @@ import Control.Monad.State.Lazy
 import Data.Either
 import Data.List
 import Data.Maybe
-import Debug.Trace
 import Text.Regex.PCRE
 
 type Result = ([String], [[R.Rule]]) -- sections
 
-parse :: String -> Result 
-parse s = case pGrammar (CG.Par.myLexer s) of
+parse :: Bool -> String -> Result 
+parse test s = case pGrammar (CG.Par.myLexer s) of
   Bad err  -> error err
-  Ok  tree -> let (rules,env) = runState (parseRules tree) emptyEnv
-              in ( map (show.snd) (tagsets env) ++ map (show.snd) (templates env)
-                 , rules )
+  Ok  tree -> let (rls,env) = runState (parseRules tree) emptyEnv
+              in  ( map (show.snd) (tagsets env) ++ map (show.snd) (templates env)
+                 , rls )
+
+--------------------------------------------------------------------------------
+
+parseRules :: Grammar -> State Env [[R.Rule]]
+parseRules (Sections secs) = mapM parseSection secs
+
+parseSection :: Section -> State Env [R.Rule]
+parseSection (Defs defs) =
+ do putSet (bosString, R.bosSet) --in case the grammar doesn't specify boundaries 
+    putSet (eosString, R.eosSet)
+    rights `fmap` mapM addDecl defs
 
 --------------------------------------------------------------------------------
 
@@ -50,9 +60,7 @@ getSet f nm = do env <- gets f
                             (lookup nm env) 
                  return set
 
---------------------------------------------------------------------------------
-
---this is awkward, TODO fix it
+-- maybe someday I want to do something with the Strings; now I'm just ignoring them
 addDecl :: Def -> State Env (Either String R.Rule)
 addDecl (SetDef s)   = do transSetDecl s >>= putSet
                           return (Left $ CG.Print.printTree s)
@@ -62,35 +70,35 @@ addDecl (RuleDef r)  = do rl <- transRule r
                           putRule rl
                           return (Right rl)
 
-parseRules :: Grammar -> State Env [[R.Rule]]
-parseRules (Sections secs) = mapM parseSection secs
-
-parseSection :: Section -> State Env [R.Rule]
-parseSection (Defs defs) =
- do putSet (bosString, R.bosSet) --in case the grammar doesn't specify boundaries 
-    putSet (eosString, R.eosSet)
-    rlsDefs <- mapM addDecl defs
-    return (rights rlsDefs)
 
 --------------------------------------------------------------------------------
 -- Rule
 
 transRule :: Rule -> State Env R.Rule
 transRule x = case x of
-  RemoveAlways nm sr tags  -> do let (name,subr) = (transName nm, transSubrTarget sr)
-                                 target <- mapSubr subr `fmap` transTagSet tags
-                                 return (R.R R.REMOVE name target always)
-  RemoveIf nm sr tags _ cs -> do let (name,subr) = (transName nm, transSubrTarget sr)
-                                 target <- mapSubr subr `fmap` transTagSet tags
-                                 ctx <- mapM transCond cs
-                                 return (R.R R.REMOVE name target (R.And ctx))
-  SelectAlways nm sr tags  -> select `fmap` transRule (RemoveAlways nm sr tags)
-  SelectIf nm sr tags x cs -> select `fmap` transRule (RemoveIf nm sr tags x cs)
-  MatchLemma str rule -> undefined
+  RemoveIf nm sr tags _ cs 
+    -> do trg <- transTagSet tags
+          ctx <- mapM transCond cs
+          let trgSubr = maybe trg (mapSubr trg) (transSubr sr)
+          let name = transName nm          
+          return (R.R R.REMOVE name trgSubr (R.And ctx))
+  RemoveAlways nm sr tags
+    -> always `fmap` transRule (RemoveIf nm sr tags MaybeIF_IF [])
+  SelectIf nm sr tags x cs 
+    -> select `fmap` transRule (RemoveIf nm sr tags x cs)
+  SelectAlways nm sr tags  
+    -> select `fmap` transRule (RemoveAlways nm sr tags)
+  MatchLemma str rl       
+    -> transRule rl --TODO
+
 
   where
-    always = R.And [R.Always]
+    always rl = rl { R.context = R.And [R.Always] }
     select rl = rl { R.rtype = R.SELECT}
+    lem rl ts = rl { R.target = ts }
+
+    addLemma :: R.TagSet -> R.TagSet
+    addLemma = undefined
 
     transName (MaybeName1 (Id nm)) = R.Name nm
     transName MaybeName2           = R.NoName
@@ -174,9 +182,10 @@ transTagSet tagset = case tagset of
 transCond :: Cond -> State Env R.Context
 transCond cond = case cond of
   -- Single contexts, barriers and set negations
-  CondPos pos tags    -> do let (rpos,subr) = transPosition pos
-                            ts <- transTagSet tags 
-                            return (R.Ctx rpos R.Yes (mapSubr subr ts))
+  CondPos pos tags    -> do ts <- transTagSet tags
+                            let (rpos,subr) = transPosition pos
+                            let tsSubr = maybe ts (mapSubr ts) subr
+                            return (R.Ctx rpos R.Yes tsSubr)
   CondBarrier p t bt  -> do ctx <- transCond (CondPos p t)
                             btags <- transTagSet bt
                             return (addBar R.Barrier btags ctx)
@@ -217,27 +226,28 @@ transCond cond = case cond of
 transPosition :: Position -> (R.Position, Maybe R.Subpos)
 transPosition x = case x of
   Exactly num         -> (R.Pos R.Exactly R.NC (read' num), Nothing)
-  AtLeastPre num      -> (R.Pos R.AtLeast R.NC (read' num), Nothing)
-  AtLeastPost num     -> transPosition (AtLeastPre num)
+  AtLeastPost num     -> (R.Pos R.AtLeast R.NC (read' num), Nothing)
   AtLPostCaut1 num    -> (R.Pos R.AtLeast R.C (read' num), Nothing)
+  AtLeastPre num      -> transPosition (AtLeastPost num)
   AtLPostCaut2 num    -> transPosition (AtLPostCaut1 num)
   Cautious position   -> let (pos,sub) = transPosition position
                          in (pos { R.careful = R.C }, sub)
-  Subreading num num' -> let (pos,_) = transPosition (Exactly num)
-                         in (pos, transSubrTarget (SubrTarget num'))
-  SubreadingStar num  -> let (pos,_) = transPosition (Exactly num)
-                         in (pos, Just R.Wherever)
+  Subreading num num' -> transPosition (Exactly num) `subr` transSubr (SubrTarget num')
+  SubreadingStar num  -> transPosition (Exactly num) `subr` transSubr SubrTargetStar
+  where 
+    subr (pos,_) sr = (pos,sr)
 
-transSubrTarget :: Subr -> Maybe R.Subpos
-transSubrTarget subr = case subr of
+transSubr :: Subr -> Maybe R.Subpos
+transSubr subr = case subr of
   SubrEmpty      -> Nothing
   SubrTargetStar -> Just R.Wherever
   SubrTarget num -> Just $ let i = read' num in
                     if i<0 then R.FromStart i else R.FromEnd i
 
-mapSubr :: Maybe R.Subpos -> R.TagSet -> R.TagSet
-mapSubr Nothing  ts = ts
-mapSubr (Just s) ts = R.Subreading s `fmap` ts
+
+mapSubr :: R.TagSet -> R.Subpos -> R.TagSet
+mapSubr tags sr = R.Subreading sr `fmap` tags
+
 
 read' :: Signed -> Int
 read' (Signed x) = read x
