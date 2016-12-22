@@ -34,8 +34,8 @@ terminator Def "" ;
 
 SetDef. Def  ::= SetDecl ;
 
-Set.   SetDecl   ::= "SET" SetName "=" TagSet ";" ;
-List.  SetDecl   ::= "LIST" SetName "=" [Tag] ";" ;
+Set.   SetDecl   ::= "SET" Id "=" TagSet ";" ;
+List.  SetDecl   ::= "LIST" Id "=" [Tag] ";" ;
 BList. SetDecl   ::= "LIST" ">>>" "=" ">>>" ";" ; -- grmbl magic tags
 EList. SetDecl   ::= "LIST" "<<<" "=" "<<<" ";" ; -- Should I have >>> as a set name or tag name ... at least this doesn't give me more errors!
 
@@ -45,24 +45,25 @@ EList. SetDecl   ::= "LIST" "<<<" "=" "<<<" ";" ; -- Should I have >>> as a set 
 
 TemplDef. Def  ::= TemplDecl ;
 
-ListTempl.   TemplDecl ::= "TEMPLATE" SetName "=" [Template] ";" ; --This allows Template to contain T:templ, which is intended behaviour.
-SingleTempl. TemplDecl ::= "TEMPLATE" SetName "=" Cond1 ";" ;
+ListTempl.   TemplDecl ::= "TEMPLATE" Id {-SetName-} "=" [Template] ";" ; --This allows Template to contain T:templ, which is intended behaviour.
+SingleTempl. TemplDecl ::= "TEMPLATE" Id {-SetName-} "=" Cond1 ";" ;
 
 
 -- Set names start with uppercase letter or number 
-SetName.  SetName ::= UIdent ;
-SetMeta.  SetName ::= "<" UIdent ">" ;
-SetSynt.  SetName ::= "@" UIdent ;
-_.        SetName ::= "$$" SetName ; -- Unification; just read them as regular set names
---_.        SetName ::= "(" SetName ")" ; maybe not
+--SetName.  SetName ::= Id {-UIdent-} ;
+--SetMeta.  SetName ::= "<" Id {-UIdent-} ">" ;
+--SetSynt.  SetName ::= "@" Id {-UIdent-} ;
+-- _.        SetName ::= "$$" SetName ; -- Unification; just read them as regular set names
 
 
 --------------------------------------------------------------------------------
 -- Tags can be wordforms or lemmas/wordforms, identifiers or named sets.
 
-Lemma.   Tag1 ::= Str ; 
-LemmaCI. Tag1 ::= Str "i" ; 
-Regex.   Tag1 ::= Str "r" ;
+Lemma.   Tag1 ::= Lem ; 
+WordF.   Tag1 ::= WordForm ;
+LemmaCI. Tag1 ::= Lem "i" ; 
+WordFCI. Tag1 ::= WordForm "i" ;
+Regex.   Tag1 ::= Lem "r" ;
 Tag.     Tag1 ::= Id ;
 BOS.     Tag1 ::= ">>>" ;
 EOS.     Tag1 ::= "<<<" ;
@@ -84,7 +85,8 @@ SelectIf.     Rule ::= "SELECT" MaybeName Subr TagSet MaybeIF [Cond] ";" ;
 RemoveIf.     Rule ::= "REMOVE" MaybeName Subr TagSet MaybeIF [Cond] ";" ;
 SelectAlways. Rule ::= "SELECT" MaybeName Subr TagSet ";" ;
 RemoveAlways. Rule ::= "REMOVE" MaybeName Subr TagSet ";" ;
-MatchLemma.   Rule ::= Str Rule ; --for some reason "<az>" SELECT foo ... doesn't work with String
+MatchLemma.   Rule ::= Lem Rule ; --for some reason "<az>" SELECT foo ... doesn't work with String
+MatchWF.      Rule ::= WordForm Rule ; --for some reason "<az>" SELECT foo ... doesn't work with String
 
 --rules SELECT ::=   ;
 --rules REMOVE ::= "REMOVE" MaybeName Subr ;
@@ -102,7 +104,7 @@ CondBarrier.  Cond2 ::= Position TagSet "BARRIER" TagSet ;
 CondCBarrier. Cond2 ::= Position TagSet "CBARRIER" TagSet ;
 CondNotBar.   Cond2 ::= "NOT" Position TagSet "BARRIER" TagSet ;
 CondNotCBar.  Cond2 ::= "NOT" Position TagSet "CBARRIER" TagSet ;
-CondTemplate. Cond2 ::= "T:" SetName ; --Can be linked: SELECT (tag) IF (1 foo LINK T:tmpl LINK 1* bar) ;
+CondTemplate. Cond2 ::= "T:" Id {-SetName-} ; --Can be linked: SELECT (tag) IF (1 foo LINK T:tmpl LINK 1* bar) ;
 CondLinked.   Cond1 ::= [Cond2] ; 
 CondNegate.   Cond  ::= "NEGATE" Cond1 ;
 
@@ -133,8 +135,8 @@ OR.      TagSet ::= TagSet1 Or TagSet ;
 Diff.    TagSet ::= TagSet1 "-" TagSet ;
 Cart.    TagSet ::= TagSet1 "+" TagSet ;
 All.     TagSet ::= "(*)" ;
-NilT.    TagSet1 ::= Tag ;
-Named.   TagSet1 ::= SetName ;
+--NilT.    TagSet1 ::= Tag ;
+Named.   TagSet1 ::= Tag {-SetName-} ;
 
 coercions TagSet 1 ;
 
@@ -154,16 +156,33 @@ SubreadingStar.  Position ::= Signed "/" "*" ;
 
 
 --token Punct ('/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!'|'←'|'→') ;
-token UIdent ((upper)(letter|digit|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')*
-	      |(digit)(upper|lower|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')* --if it begins with number, can't end in / or C, because that's ambiguous with positions
-		      (upper - ["C"]|lower|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')+
-              |('+')(digit|letter|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')+ 
-              |('+'|'-')(letter|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')+) ;
-                   --cannot end in digit if it begins with -
+
+{-Leaving this out for a while, I'm just trying to parse the Basque grammar
+
+token ComplexId ((letter|digit|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')*
+
+	           --if it begins with number, can't end in / or C, 
+	           --because that's ambiguous with positions
+	           |(digit)(upper|lower|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')* 
+		        (upper - ["C"]|lower|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')+ 
+
+               |('+')(digit|letter|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')+ 
+
+                --cannot end in digit if it begins with -
+               |('+'|'-')(letter|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')+) ;
+-}
+
+--token UIdent (upper (letter | digit | '_' | '-' )*) ;
 
 token Id ((letter)(upper|letter|digit|'/'|'_'|'+'|'-'|'!'|'¿'|'¡')*
-          |('\\'|'+')(digit|letter|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')+) ;
+          |('\\'|'+'|'<')(digit|letter|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!'|'>')+) ;
 
-token Str ('"' ((char - ["\""]))* '"') ; -- to allow e.g. ("\,") OR ("\:") OR ("\;")
+token Lem ('"' ((char - ["\""]))* '"') ; -- to allow e.g. ("\,") OR ("\:") OR ("\;")
+
+--token Str ('"' ((char - ["\""]))* '"') ; -- to allow e.g. ("\,") OR ("\:") OR ("\;")
+
+token WordForm ({"\"<"} ((char - ["\">"]))* {">\""}) ;
 
 token Signed ('-'? (digit)+) ;
+
+
