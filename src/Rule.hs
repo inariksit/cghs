@@ -26,7 +26,8 @@ instance Show RName where
   show (Name s) = ':':s
 
 instance Show Rule where
-  show (R t n trg c) = printf "%s%s %s IF %s" (show t) (show n) (show trg) (show c)
+  show (R t n trg (And [Always])) = printf "%s%s %s ;"  (show t) (show n) (show trg)
+  show (R t n trg c) = printf "%s%s %s IF %s ;" (show t) (show n) (show trg) (show c)
 
 --------------------------------------------------------------------------------
 -- Tags and tagsets
@@ -41,7 +42,7 @@ data Set a = List (OrList (AndList a))    -- LIST Foo = foo ("<bar>" bar) baz
             | Cart (Set a) (Set a)        -- SET Baz = Foo + Bar
 --            | SymDif (Set a) (Set a)      -- SET Baz = Foo ∆ Bar
 --            | Inters (Set a) (Set a)      -- SET Baz = Foo ∩ Bar
-            | All deriving (Eq,Ord,Show)  -- (*)
+            | All deriving (Eq,Ord)  -- (*)
 
 tagList :: Tag -> TagSet
 tagList tag = List (Or [(And [tag])])
@@ -118,19 +119,54 @@ data Context = Ctx { position :: Position
              | Link (AndList Context)
              | Template (OrList Context) -- same for inline and named
              | Negate Context
-             | Always deriving (Eq,Ord,Show)
+             | Always deriving (Eq,Ord)
+
+instance Show Context where
+  show (Template cs) = show cs
+  show (Negate ctx)  = "NEGATE " ++ show ctx
+  show (Link cs)     = " LINK " `intercalate` map showSingleCtx (getAndList cs)
+  show Always        = []
+  show ctx           = addParens (showSingleCtx ctx)
+
+showSingleCtx (Ctx pos pol ts) = printf "%s%s %s" (show pol) (show pos) (show ts)
+showSingleCtx x                = undefined
 
 data Position = Pos { scan :: Scan 
                     , careful :: Careful
                     , pos :: Int 
-                    } deriving (Eq,Ord,Show)
+                    } deriving (Eq,Ord)
+
+instance Show Position where
+  show (Pos sc c p) = let (sc1,sc2) = showScan sc 
+                      in printf "%s%s%s%s" sc1 (show p) (show c) sc2
 
 data Scan = Exactly 
           | AtLeast 
           | Barrier TagSet 
-          | CBarrier TagSet deriving (Eq,Ord,Show)
-data Careful  = C | NC deriving (Eq,Ord,Show)
-data Polarity = Yes | Not deriving (Eq,Ord,Show)
+          | CBarrier TagSet deriving (Eq,Ord)
+
+instance Show Scan where
+  show sc = let (a,b) = showScan sc in a++b
+
+showScan :: Scan -> (String,String)
+showScan Exactly = ([],[])
+showScan AtLeast = ("*",[])
+showScan (Barrier ts) = ("*", " BARRIER " ++ show ts)
+showScan (CBarrier ts) = ("*", " CBARRIER " ++ show ts)
+
+
+data Careful  = C | NC deriving (Eq,Ord)
+
+instance Show Careful where
+  show C  = "C"
+  show NC = []
+
+data Polarity = Yes | Not deriving (Eq,Ord)
+
+instance Show Polarity where
+  show Yes = []
+  show Not = " NOT "
+
 
 
 --------------------------------------------------------------------------------
@@ -141,13 +177,18 @@ data Polarity = Yes | Not deriving (Eq,Ord,Show)
 newtype OrList a = Or { getOrList :: [a] } deriving (Eq,Ord)
 newtype AndList a = And { getAndList :: [a] } deriving (Eq,Ord)
 
+addParens x = "(" ++ x ++ ")"
 
 instance (Show a) => Show (AndList a) where
-  show = filter (/='"') . unwords . map show . getAndList
+  show = addParens . filter (/='"') . unwords . map show . getAndList
+
 instance Functor AndList where
   fmap f (And xs) = And (fmap f xs)
 instance Foldable AndList where
   foldMap f (And xs) = foldMap f xs
+instance Monoid (AndList a) where
+  mempty = And mempty
+  mappend (And as) (And bs) = And (mappend as bs)
 
 instance (Show a) => Show (OrList a) where
   show = filter (/='"') . intercalate " OR " . map show . getOrList
@@ -155,7 +196,12 @@ instance Functor OrList where
   fmap f (Or xs) = Or (fmap f xs)
 instance Foldable OrList where
   foldMap f (Or xs) = foldMap f xs
+instance Monoid (OrList a) where
+  mempty = Or mempty
+  mappend (Or as) (Or bs) = Or (mappend as bs)
 
+-- foo (bar baz) `mappend` hargle (bargle foo) (bargle bar)
+-- === foo (bar baz) hargle (bargle foo) (bargle bar)
 
 instance Functor Set where
   fmap f (List ts)      = List (fmap (fmap f) ts)
@@ -164,4 +210,46 @@ instance Functor Set where
   fmap f (Cart ts ts')  = Cart (fmap f ts) (fmap f ts')
   fmap f All            = All
 
+instance (Show a) => Show (Set a) where
+  show (List ts) = show ts
+  show (Union ts ts') = show ts ++ " | " ++ show ts'
+  show (Diff ts ts') = show ts ++ " - " ++ show ts'
+  show (Cart ts ts') = show ts ++ " + " ++ show ts'
+  show All = "(*)"
+
+
+
+--------------------------------------------------------------------------------
+
+--maybe this is not a good idea after all?
+--instance Monoid (Set a) where
+--  mempty = List (Or [And []])
+
+--  mappend All _ = All
+--  mappend _ All = All
+--  mappend (List as) (List bs) = List (mappend as bs)
+--  mappend as@(List _) (Cart ss ts) = Cart (mappend as ss) (mappend as ts)
+--  mappend _ _ = undefined
+
+
+{-
+
+"<foo>" REMOVE bar IF baz 
+ === REMOVE "<foo>" bar IF baz
+
+ target = List (Or [And [Tag "bar"]])
+ lemma =  List (Or [And [WF "foo"]])
+ mappend lemma target = List (Or [And [Tag "bar", Lem "foo"]])
+
+ target = Cart (List (Or [And ["bar"]])) 
+               (List (Or [ And ["bar"], And ["hargle", "bargle"] ])) -- bar (hargle bargle)
+ lemma =  List (Or [And [WF "foo"]])
+ mappend lemma target =
+          Cart (List (Or [And ["foo", "bar"]]))
+               (List (Or [ And ["foo", bar"], And ["foo", "hargle", "bargle"] ] -- bar (hargle bargle)
+                      )     
+               )
+
+
+-}
 
