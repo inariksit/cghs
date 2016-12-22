@@ -2,7 +2,7 @@ module Rule where
 
 import Data.List ( intercalate )
 import Text.Printf ( printf )
-import Text.Regex.PCRE
+--import Text.Regex.PCRE
 
 
 --------------------------------------------------------------------------------
@@ -15,7 +15,7 @@ data Rule =
       , context :: AndList Context
       } deriving (Eq,Ord)
 
-data RType = SELECT | REMOVE | IFF | ADD | MAP | SUBSTITUTE
+data RType = SELECT | REMOVE | IFF | ADD | MAP TagSet | SUBSTITUTE
   deriving (Eq,Ord,Show)
 
 data RName = Name String | NoName

@@ -12,12 +12,12 @@ import Control.Monad.State.Lazy
 import Data.Either
 import Data.List
 import Data.Maybe
-import Text.Regex.PCRE
+--import Text.Regex.PCRE
 
 type Result = ([String], [[R.Rule]]) -- sections
 
-parse :: Bool -> String -> Result 
-parse test s = case pGrammar (CG.Par.myLexer s) of
+parse :: String -> Result 
+parse s = case pGrammar (CG.Par.myLexer s) of
   Bad err  -> error err
   Ok  tree -> let (rls,env) = runState (parseRules tree) emptyEnv
               in  ( map (show.snd) (tagsets env) ++ map (show.snd) (templates env)
@@ -85,9 +85,15 @@ transRule x = case x of
     -> select `fmap` transRule (RemoveIf nm sr tags x cs)
   SelectAlways nm sr tags  
     -> select `fmap` transRule (RemoveAlways nm sr tags)
+  MapIf maptags _ tags x cs 
+    -> do rule <- transRule (RemoveIf MaybeName2 SubrEmpty tags x cs)
+          mts <- transTagSet maptags
+          return (map_ rule mts)
+  MapAlways maptags t tags 
+    -> always `fmap` transRule (MapIf maptags t tags MaybeIF_IF [])
   MatchLemma lem rl       
     -> do rule@(R.R _ _ trg _) <- transRule rl 
-          let lemTag = R.Lem (showLem lem)
+          let lemTag = R.Lem lem
           return (newTrg rule (addTag lemTag trg))
   MatchWF wf rl       
     -> do rule@(R.R _ _ trg _) <- transRule rl 
@@ -98,6 +104,7 @@ transRule x = case x of
   where
     always rl = rl { R.context = R.And [R.Always] }
     select rl = rl { R.rtype = R.SELECT}
+    map_ rl ts = rl { R.rtype = R.MAP ts }
     newTrg rl ts = rl { R.target = ts }
 
     addTag :: R.Tag -> R.TagSet -> R.TagSet
@@ -115,12 +122,10 @@ transRule x = case x of
 
 showId :: Id -> String
 showId (SetName (ComplexId str)) = str
-showId (SetMeta foo) = showId (SetName foo) --TODO: return to this if I need it someday
-showId (SetSynt foo) = showId (SetName foo) --TODO: return to this if I need it someday
-showId (SetUnif foo) = showId foo
-
-showLem :: Lem -> String
-showLem (Lem s) = (drop 1 . reverse . drop 1 . reverse) s
+showId (SetUnif foo) = showId foo --TODO: return to these if I need them someday
+showId (SetMeta foo) = showId (SetName foo)
+showId (SetSynt foo) = showId (SetName foo) 
+showId (SetSem foo) = showId (SetName foo) 
 
 showWF :: WordForm -> String
 showWF (WordForm s) = (drop 2 . reverse . drop 2 . reverse) s
@@ -131,7 +136,7 @@ eosString = "<<<"
 transSetDecl :: SetDecl -> State Env (String, R.TagSet)
 transSetDecl setdecl =
   case setdecl of 
-    Set nm tagset -> (,) (show nm) `fmap` transTagSet tagset
+    Set nm tagset -> (,) (showId nm) `fmap` transTagSet tagset
     List nm tags  -> do let tagLists = map transTag tags :: [TagList]
                         let setName = showId nm
                         return (setName, R.List (R.Or tagLists))
@@ -158,12 +163,12 @@ showTag t = case t of
   EOS -> eosString
   And tags -> "(" ++ unwords (map show tags) ++ ")"
   Tag id_ -> showId id_
-  Lemma l -> showLem l
+  Lemma l -> l
   WordF w -> showWF w
   --TODO: case-insensitive lemma/wordform + regex
   LemmaCI foo   -> showTag (Lemma foo)
   WordFCI foo   -> showTag (WordF foo)
-  Regex foo     -> show foo
+  Regex foo     -> foo
 
 transTag :: Tag -> TagList
 transTag tag = case tag of
