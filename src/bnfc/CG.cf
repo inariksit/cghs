@@ -163,8 +163,21 @@ rules OR ::= "OR" | "|" | "or" ;
 
 --------------------------------------------------------------------------------
 
-token ComplexId ((letter)(upper|letter|digit|'/'|'_'|'+'|'-'|'!'|'¿'|'¡')*
-          |('\\'|'+'|'<')(digit|letter|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!'|'>')+) ;
+token ComplexId 
+      ( -- Ids that start with letters or carefully (=ad hoc) selected symbols
+        ('\\'|'+'|'<'|letter)
+               (digit|letter|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!'|'>')*
+
+      |
+ 		 -- If an identifier begins with -, it may not end in C or number:
+ 		 -- otherwise positions are recognised as ids.
+        ('-')  (digit|letter|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!'|'>')*
+			(upper - ["C"]|lower|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!'|'>')
+		
+      ) ;
+
+
+
 
 
 token Lem ('"' ((char - ["\""]))* '"') ; -- to allow e.g. ("\,") OR ("\:") OR ("\;")
@@ -173,17 +186,4 @@ token WordForm ({"\"<"} ((char - ["\">"]))* {">\""}) ;
 
 token Signed ('-'? (digit)+) ;
 
---Leaving this out for a while, I'm just trying to parse the Basque grammar
---
---token ComplexId ((letter|digit|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')*
---
---	           --if it begins with number, can't end in / or C, 
---	           --because that's ambiguous with positions
---	           |(digit)(upper|lower|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')* 
---		        (upper - ["C"]|lower|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')+ 
---
---               |('+')(digit|letter|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')+ 
---
---                --cannot end in digit if it begins with -
---               |('+'|'-')(letter|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')+) ;
 --token Punct ('/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!'|'←'|'→') ;
