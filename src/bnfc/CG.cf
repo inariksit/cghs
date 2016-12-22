@@ -3,7 +3,7 @@ comment "#" ;
 comment "SETS" ;
 comment "SUBREADINGS" ;
 comment "CONSTRAINTS" ;
-comment "MAPPINGS" ;
+comment "MAPPING" ;
 comment "DELIMITERS" ;
 comment "SOFT-DELIMITERS" ;
 comment "AFTER-SECTIONS" ;
@@ -13,7 +13,6 @@ comment "NULL-SECTION" ;
 -- hacks
 comment "ADD" ; 
 comment "IFF" ;
-comment "MAP" ;
 comment "SUBSTITUTE" ;
 
 
@@ -54,6 +53,7 @@ SingleTempl. TemplDecl ::= "TEMPLATE" Id "=" Cond1 ";" ;
 SetName.  Id ::= ComplexId ;
 SetMeta.  Id ::= "<" ComplexId ">" ;
 SetSynt.  Id ::= "@" ComplexId ;  -- Syntactic tags
+SetSem.  Id ::= "&" ComplexId ;  -- Semantic tags
 SetUnif.  Id ::= "$$" Id ; -- Unification
 
 
@@ -67,11 +67,14 @@ SelectIf.     Rule ::= "SELECT" MaybeName Subr TagSet MaybeIF [Cond] ";" ;
 RemoveIf.     Rule ::= "REMOVE" MaybeName Subr TagSet MaybeIF [Cond] ";" ;
 SelectAlways. Rule ::= "SELECT" MaybeName Subr TagSet ";" ;
 RemoveAlways. Rule ::= "REMOVE" MaybeName Subr TagSet ";" ;
-MatchLemma.   Rule ::= Lem Rule ; -- "\"" String "\"" doesn't work
+MapIf.        Rule ::= "MAP" TagSet MaybeTrg TagSet MaybeIF [Cond] ";" ;
+MapAlways.    Rule ::= "MAP" TagSet MaybeTrg TagSet ";" ;
+MatchLemma.   Rule ::= String Rule ; 
 MatchWF.      Rule ::= WordForm Rule ;
 
 rules MaybeIF   ::= "IF" | "if" | ;
 rules MaybeName ::= ":" ComplexId | ;
+rules MaybeTrg  ::= "TARGET" | ;
 
 SubrTarget.      Subr ::= "SUB" ":" Signed ;
 SubrTargetStar.  Subr ::= "SUB:*" ;
@@ -125,11 +128,11 @@ SubreadingStar.  Position ::= Signed "/" "*" ;
 
 -- Tags can be wordforms or lemmas/wordforms, identifiers or named sets.
 
-Lemma.   Tag1 ::= Lem ; 
+Lemma.   Tag1 ::= String ; 
 WordF.   Tag1 ::= WordForm ;
-LemmaCI. Tag1 ::= Lem "i" ; 
+LemmaCI. Tag1 ::= String "i" ; 
 WordFCI. Tag1 ::= WordForm "i" ;
-Regex.   Tag1 ::= "\"" String "\"" "r" ;
+Regex.   Tag1 ::= String "r" ;
 Tag.     Tag1 ::= Id ;
 BOS.     Tag1 ::= ">>>" ;
 EOS.     Tag1 ::= "<<<" ;
@@ -169,21 +172,21 @@ token ComplexId
                (digit|letter|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!'|'>')*
 
       |
- 		 -- If an identifier begins with -, it may not end in C or number:
+ 		 -- If an identifier begins with -, it may not end in 'C,' '*', or digit:
  		 -- otherwise positions are recognised as ids.
         ('-')  (digit|letter|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!'|'>')*
-			(upper - ["C"]|lower|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!'|'>')
+		(upper - ["C"]|lower|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!'|'>')
+
+	  | -- Identifier beginning with - may end in 'C' or '*', if there is no numbers.
+        ('-')  (letter|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!'|'>')+
 		
       ) ;
 
 
+token Signed ('-'? (digit)+) ;
 
-
-
-token Lem ('"' ((char - ["\""]))* '"') ; -- to allow e.g. ("\,") OR ("\:") OR ("\;")
-
+-- String would cover this too, but I'll just do the more careful matching here.
 token WordForm ({"\"<"} ((char - ["\">"]))* {">\""}) ;
 
-token Signed ('-'? (digit)+) ;
 
 --token Punct ('/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!'|'←'|'→') ;
