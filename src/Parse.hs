@@ -53,12 +53,9 @@ putSet x = modify $ \env -> env { tagsets = x : tagsets env }
 putTempl :: (String,R.Context) -> State Env ()
 putTempl x = modify $ \env -> env { templates = x : templates env }
 
-getSet :: (Env -> [(String,a)]) -> String -> State Env a
-getSet f nm = do env <- gets f
-                 let set = fromMaybe 
-                            (error $ "Tagset/template " ++ nm ++ " not defined!")
-                            (lookup nm env) 
-                 return set
+getSet :: (Env -> [(String,a)]) -> String -> State Env (Maybe a)
+getSet f nm = lookup nm `fmap` gets f
+
 
 -- maybe someday I want to do something with the Strings; now I'm just ignoring them
 addDecl :: Def -> State Env (Either String R.Rule)
@@ -88,17 +85,25 @@ transRule x = case x of
     -> select `fmap` transRule (RemoveIf nm sr tags x cs)
   SelectAlways nm sr tags  
     -> select `fmap` transRule (RemoveAlways nm sr tags)
-  MatchLemma str rl       
-    -> transRule rl --TODO
-
+  MatchLemma lem rl       
+    -> do rule@(R.R _ _ trg _) <- transRule rl 
+          let lemTag = R.Lem (showLem lem)
+          return (newTrg rule (addTag lemTag trg))
+  MatchWF wf rl       
+    -> do rule@(R.R _ _ trg _) <- transRule rl 
+          let wfTag = R.WF (showWF wf)
+          return (newTrg rule (addTag wfTag trg))
+  
 
   where
     always rl = rl { R.context = R.And [R.Always] }
     select rl = rl { R.rtype = R.SELECT}
-    lem rl ts = rl { R.target = ts }
+    newTrg rl ts = rl { R.target = ts }
 
-    addLemma :: R.TagSet -> R.TagSet
-    addLemma = undefined
+    addTag :: R.Tag -> R.TagSet -> R.TagSet
+    addTag tag (R.List ts) = R.List (R.Or [R.And [tag]] `mappend` ts)
+    addTag tag _           = error "addTag: TODO I should implement other set operations for targets"
+
 
     transName (MaybeName1 (Id nm)) = R.Name nm
     transName MaybeName2           = R.NoName
@@ -107,13 +112,23 @@ transRule x = case x of
 
 --------------------------------------------------------------------------------
 -- Sets: BOS/EOS; simple names (Adj); syntactic tags (@OBJ); weird stuff (<;>)
-
+{-
 showSetName :: SetName -> String
 showSetName setname =
   case setname of
     SetName (UIdent name) -> name
     SetMeta (UIdent name) -> "<" ++ name ++ ">"
     SetSynt (UIdent name) -> "@" ++ name
+-}
+
+showId :: Id -> String
+showId (Id str) = str
+
+showLem :: Lem -> String
+showLem (Lem s) = (drop 1 . reverse . drop 1 . reverse) s
+
+showWF :: WordForm -> String
+showWF (WordForm s) = (drop 2 . reverse . drop 2 . reverse) s
 
 bosString = ">>>"
 eosString = "<<<"
@@ -121,9 +136,9 @@ eosString = "<<<"
 transSetDecl :: SetDecl -> State Env (String, R.TagSet)
 transSetDecl setdecl =
   case setdecl of 
-    Set nm tagset -> (,) (showSetName nm) `fmap` transTagSet tagset
+    Set nm tagset -> (,) (show nm) `fmap` transTagSet tagset
     List nm tags  -> do let tagLists = map transTag tags :: [TagList]
-                        let setName = showSetName nm
+                        let setName = showId nm
                         return (setName, R.List (R.Or tagLists))
 
     BList -> return (bosString, R.bosSet)
@@ -133,45 +148,66 @@ transSetDecl setdecl =
 -- Templates: single or a list with ORs
 transTemplDecl :: TemplDecl -> State Env (String, R.Context)
 transTemplDecl templ = case templ of
-  SingleTempl nm cond  -> (,) (showSetName nm) `fmap` transCond cond
-  ListTempl   nm conds -> (,) (showSetName nm) `fmap` transCond (CondTemplInl conds)
+  SingleTempl nm cond  -> (,) (showId nm) `fmap` transCond cond
+  ListTempl   nm conds -> (,) (showId nm) `fmap` transCond (CondTemplInl conds)
 
 --------------------------------------------------------------------------------
 -- Tags and tagsets
 
 type TagList = R.AndList R.Tag
 
-toTag :: String -> R.Tag
-toTag s = case s of
-  ('"':'<':_) -> R.WF (strip 2 s)
-  ('"':    _) -> R.Lem (strip 1 s)
-  _           -> R.Tag s
-  where 
-    strip :: Int -> String -> String
-    strip n = drop n . reverse . drop n . reverse
+--toTag :: String -> R.Tag
+--toTag s = case s of
+--  ('"':'<':_) -> R.WF (strip 2 s)
+--  ('"':    _) -> R.Lem (strip 1 s)
+--  _           -> R.Tag s
+--  where 
+--    strip :: Int -> String -> String
+--    strip n = drop n . reverse . drop n . reverse
+
+
+showTag :: Tag -> String
+showTag t = case t of
+  BOS -> bosString
+  EOS -> eosString
+  AND tags -> "(" ++ unwords (map show tags) ++ ")"
+  Tag (Id s) -> s
+  Lemma l -> showLem l
+  WordF w -> showWF w
+  --TODO: case-insensitive lemma/wordform + regex
+  LemmaCI foo   -> showTag (Lemma foo)
+  WordFCI foo   -> showTag (WordF foo)
+  Regex foo     -> show foo
 
 transTag :: Tag -> TagList
 transTag tag = case tag of
   BOS -> R.And [R.BOS]
   EOS -> R.And [R.EOS]
-  Lemma (Str s) -> R.And [toTag s]
-  Tag (Id str)  -> R.And [toTag str]
-  AND tags      -> R.And $ concatMap (R.getAndList.transTag) tags
-
+  AND tags -> R.And $ concatMap (R.getAndList.transTag) tags  
+  t@(Tag name) -> R.And [R.Tag (showTag t)]
+  l@(Lemma nm) -> R.And [R.Lem (showTag l)]
+  w@(WordF nm) -> R.And [R.WF (showTag w)]
   --TODO: case-insensitive lemma + regex
   LemmaCI foo   -> transTag (Lemma foo) 
-  Regex foo     -> transTag (Lemma foo)
-  -- /TODO
+  WordFCI foo   -> transTag (WordF foo)
+  Regex foo     -> R.And [R.Rgx (show foo)] 
+
 
 
 transTagSet :: TagSet -> State Env R.TagSet
 transTagSet tagset = case tagset of
   All         -> return R.All
-  NilT tag    -> return (R.List (R.Or [transTag tag]))
+--  NilT tag    -> return (R.List (R.Or [transTag tag]))
   OR ts _ ts' -> liftM2 R.Union (transTagSet ts) (transTagSet ts')
   Diff ts ts' -> liftM2 R.Diff (transTagSet ts) (transTagSet ts')
   Cart ts ts' -> liftM2 R.Diff (transTagSet ts) (transTagSet ts')
-  Named nm    -> getSet tagsets (showSetName nm)
+  -- A single tag could be just a single tag, or a reference to a tag list.
+  -- No way to decide that by the shape of the identifier, hence trying both ways.
+  Named tag   -> do let tagName = showTag tag
+                    tags <- getSet tagsets tagName
+                    return $ case tags of
+                      Nothing -> R.List (R.Or [transTag tag])
+                      Just ts -> ts
 
 
 
@@ -203,7 +239,7 @@ transCond cond = case cond of
                             templ `fmap` mapM transCond conds
 
 -- Finally, named template is just retrieved from the environment.
-  CondTemplate name   -> getSet templates (showSetName name)
+  CondTemplate name   -> fromJust `fmap` getSet templates (showId name)
 
   where 
     link = R.Link . R.And
