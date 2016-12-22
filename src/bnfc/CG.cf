@@ -45,37 +45,19 @@ EList. SetDecl   ::= "LIST" "<<<" "=" "<<<" ";" ; -- Should I have >>> as a set 
 
 TemplDef. Def  ::= TemplDecl ;
 
-ListTempl.   TemplDecl ::= "TEMPLATE" Id {-SetName-} "=" [Template] ";" ; --This allows Template to contain T:templ, which is intended behaviour.
-SingleTempl. TemplDecl ::= "TEMPLATE" Id {-SetName-} "=" Cond1 ";" ;
+ListTempl.   TemplDecl ::= "TEMPLATE" Id "=" [Template] ";" ; --This allows Template to contain T:templ, which is intended behaviour.
+SingleTempl. TemplDecl ::= "TEMPLATE" Id "=" Cond1 ";" ;
 
 
--- Set names start with uppercase letter or number 
---SetName.  SetName ::= Id {-UIdent-} ;
---SetMeta.  SetName ::= "<" Id {-UIdent-} ">" ;
---SetSynt.  SetName ::= "@" Id {-UIdent-} ;
--- _.        SetName ::= "$$" SetName ; -- Unification; just read them as regular set names
+-- Set names: ComplexIds or fancy added stuff.
+-- $$ is not part of the set name, you can use it with any
+SetName.  Id ::= ComplexId ;
+SetMeta.  Id ::= "<" ComplexId ">" ;
+SetSynt.  Id ::= "@" ComplexId ;  -- Syntactic tags
+SetUnif.  Id ::= "$$" Id ; -- Unification
 
 
 --------------------------------------------------------------------------------
--- Tags can be wordforms or lemmas/wordforms, identifiers or named sets.
-
-Lemma.   Tag1 ::= Lem ; 
-WordF.   Tag1 ::= WordForm ;
-LemmaCI. Tag1 ::= Lem "i" ; 
-WordFCI. Tag1 ::= WordForm "i" ;
-Regex.   Tag1 ::= Lem "r" ;
-Tag.     Tag1 ::= Id ;
-BOS.     Tag1 ::= ">>>" ;
-EOS.     Tag1 ::= "<<<" ;
---_.       Tag1 ::= "(" Tag ")" ;
---_.       Tag1 ::= "+" Tag1 ; -- TODO what is this???
-
-coercions Tag 1 ; --This takes care of parenthesising one tag (which has no effect, can be done randomly). Parenthesising a list of tags will match the constructor AND, and that list has to be >1 tags.
-
-separator nonempty Tag "" ;
---separator nonempty Tag "" ;
-
-----------------------------------------------------------------------
 -- Rules: e.g.
 -- REMOVE Foo IF (-1 Bar) 
 
@@ -85,18 +67,19 @@ SelectIf.     Rule ::= "SELECT" MaybeName Subr TagSet MaybeIF [Cond] ";" ;
 RemoveIf.     Rule ::= "REMOVE" MaybeName Subr TagSet MaybeIF [Cond] ";" ;
 SelectAlways. Rule ::= "SELECT" MaybeName Subr TagSet ";" ;
 RemoveAlways. Rule ::= "REMOVE" MaybeName Subr TagSet ";" ;
-MatchLemma.   Rule ::= Lem Rule ; --for some reason "<az>" SELECT foo ... doesn't work with String
-MatchWF.      Rule ::= WordForm Rule ; --for some reason "<az>" SELECT foo ... doesn't work with String
-
---rules SELECT ::=   ;
---rules REMOVE ::= "REMOVE" MaybeName Subr ;
+MatchLemma.   Rule ::= Lem Rule ; -- "\"" String "\"" doesn't work
+MatchWF.      Rule ::= WordForm Rule ;
 
 rules MaybeIF   ::= "IF" | "if" | ;
-rules MaybeName ::= ":" Id | ;
+rules MaybeName ::= ":" ComplexId | ;
 
 SubrTarget.      Subr ::= "SUB" ":" Signed ;
 SubrTargetStar.  Subr ::= "SUB:*" ;
 SubrEmpty.       Subr ::= ;
+
+
+--------------------------------------------------------------------------------
+-- Conditions
 
 CondNotPos.   Cond2 ::= "NOT" Position TagSet ;
 CondPos.      Cond2 ::= Position TagSet ;
@@ -104,7 +87,7 @@ CondBarrier.  Cond2 ::= Position TagSet "BARRIER" TagSet ;
 CondCBarrier. Cond2 ::= Position TagSet "CBARRIER" TagSet ;
 CondNotBar.   Cond2 ::= "NOT" Position TagSet "BARRIER" TagSet ;
 CondNotCBar.  Cond2 ::= "NOT" Position TagSet "CBARRIER" TagSet ;
-CondTemplate. Cond2 ::= "T:" Id {-SetName-} ; --Can be linked: SELECT (tag) IF (1 foo LINK T:tmpl LINK 1* bar) ;
+CondTemplate. Cond2 ::= "T:" Id ; --Can be linked: SELECT (tag) IF (1 foo LINK T:tmpl LINK 1* bar) ;
 CondLinked.   Cond1 ::= [Cond2] ; 
 CondNegate.   Cond  ::= "NEGATE" Cond1 ;
 
@@ -124,25 +107,8 @@ separator nonempty Cond "" ;
 Template. Template ::= "(" Cond1 ")" ;
 separator nonempty Template "OR" ;
 
--- Essentially, tags bound by AND are like one tag.
--- These tags are separated by spaces and enclosed in parentheses.
--- Also you can just parenthesise a single tag randomly.
---- TODO find some hack to force the list nonempty (abuse numbers?)
-AND.     Tag1 ::= "(" [Tag] ")" ; 
-
--- OR 
-OR.      TagSet ::= TagSet1 Or TagSet ; 
-Diff.    TagSet ::= TagSet1 "-" TagSet ;
-Cart.    TagSet ::= TagSet1 "+" TagSet ;
-All.     TagSet ::= "(*)" ;
---NilT.    TagSet1 ::= Tag ;
-Named.   TagSet1 ::= Tag {-SetName-} ;
-
-coercions TagSet 1 ;
-
-
-
-rules Or ::= "OR" | "|" ;
+--------------------------------------------------------------------------------
+-- Positions
 
 Exactly.     	 Position ::= Signed ;
 AtLeastPre.  	 Position ::= "*" Signed ;
@@ -154,35 +120,70 @@ Cautious.    	 Position ::= Position "C" ;
 Subreading.  	 Position ::= Signed "/" Signed ;
 SubreadingStar.  Position ::= Signed "/" "*" ;
 
+--------------------------------------------------------------------------------
+-- Tags and tagsets
 
---token Punct ('/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!'|'←'|'→') ;
+-- Tags can be wordforms or lemmas/wordforms, identifiers or named sets.
 
-{-Leaving this out for a while, I'm just trying to parse the Basque grammar
+Lemma.   Tag1 ::= Lem ; 
+WordF.   Tag1 ::= WordForm ;
+LemmaCI. Tag1 ::= Lem "i" ; 
+WordFCI. Tag1 ::= WordForm "i" ;
+Regex.   Tag1 ::= "\"" String "\"" "r" ;
+Tag.     Tag1 ::= Id ;
+BOS.     Tag1 ::= ">>>" ;
+EOS.     Tag1 ::= "<<<" ;
+--_.       Tag1 ::= "+" Tag1 ; -- TODO what is this???
 
-token ComplexId ((letter|digit|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')*
+coercions Tag 1 ; 
+--This takes care of parenthesising one tag (which has no effect, can be done randomly). 
+--Parenthesising a list of tags will match the constructor And.
+--Ideally, that list should be >1 tags.
 
-	           --if it begins with number, can't end in / or C, 
-	           --because that's ambiguous with positions
-	           |(digit)(upper|lower|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')* 
-		        (upper - ["C"]|lower|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')+ 
 
-               |('+')(digit|letter|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')+ 
+-- Tags bound by And are like one tag.
+-- These tags are separated by spaces and enclosed in parentheses.
+And.     Tag1 ::= "(" [Tag] ")" ; -- Tag [Tag] ?
+separator nonempty Tag "" ;
 
-                --cannot end in digit if it begins with -
-               |('+'|'-')(letter|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')+) ;
--}
+-- Tagsets
+Union.      TagSet ::= TagSet1 OR TagSet ; 
+Diff.    TagSet ::= TagSet1 "-" TagSet ;
+Cart.    TagSet ::= TagSet1 "+" TagSet ;
+All.     TagSet ::= "(*)" ;
 
---token UIdent (upper (letter | digit | '_' | '-' )*) ;
+-- A single tag may be either a tag, or a named tag set.
+-- We have no way of knowing which one, just by the form of the identifier.
+-- We'll just try both options.
+Named.   TagSet1 ::= Tag ;
 
-token Id ((letter)(upper|letter|digit|'/'|'_'|'+'|'-'|'!'|'¿'|'¡')*
+coercions TagSet 1 ;
+
+rules OR ::= "OR" | "|" | "or" ;
+
+--------------------------------------------------------------------------------
+
+token ComplexId ((letter)(upper|letter|digit|'/'|'_'|'+'|'-'|'!'|'¿'|'¡')*
           |('\\'|'+'|'<')(digit|letter|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!'|'>')+) ;
 
-token Lem ('"' ((char - ["\""]))* '"') ; -- to allow e.g. ("\,") OR ("\:") OR ("\;")
 
---token Str ('"' ((char - ["\""]))* '"') ; -- to allow e.g. ("\,") OR ("\:") OR ("\;")
+token Lem ('"' ((char - ["\""]))* '"') ; -- to allow e.g. ("\,") OR ("\:") OR ("\;")
 
 token WordForm ({"\"<"} ((char - ["\">"]))* {">\""}) ;
 
 token Signed ('-'? (digit)+) ;
 
-
+--Leaving this out for a while, I'm just trying to parse the Basque grammar
+--
+--token ComplexId ((letter|digit|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')*
+--
+--	           --if it begins with number, can't end in / or C, 
+--	           --because that's ambiguous with positions
+--	           |(digit)(upper|lower|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')* 
+--		        (upper - ["C"]|lower|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')+ 
+--
+--               |('+')(digit|letter|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')+ 
+--
+--                --cannot end in digit if it begins with -
+--               |('+'|'-')(letter|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')+) ;
+--token Punct ('/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!'|'←'|'→') ;

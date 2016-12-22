@@ -105,24 +105,19 @@ transRule x = case x of
     addTag tag _           = error "addTag: TODO I should implement other set operations for targets"
 
 
-    transName (MaybeName1 (Id nm)) = R.Name nm
+    transName (MaybeName1 (ComplexId nm)) = R.Name nm
     transName MaybeName2           = R.NoName
 
 
 
 --------------------------------------------------------------------------------
 -- Sets: BOS/EOS; simple names (Adj); syntactic tags (@OBJ); weird stuff (<;>)
-{-
-showSetName :: SetName -> String
-showSetName setname =
-  case setname of
-    SetName (UIdent name) -> name
-    SetMeta (UIdent name) -> "<" ++ name ++ ">"
-    SetSynt (UIdent name) -> "@" ++ name
--}
 
 showId :: Id -> String
-showId (Id str) = str
+showId (SetName (ComplexId str)) = str
+showId (SetMeta foo) = showId (SetName foo) --TODO: return to this if I need it someday
+showId (SetSynt foo) = showId (SetName foo) --TODO: return to this if I need it someday
+showId (SetUnif foo) = showId foo
 
 showLem :: Lem -> String
 showLem (Lem s) = (drop 1 . reverse . drop 1 . reverse) s
@@ -156,22 +151,13 @@ transTemplDecl templ = case templ of
 
 type TagList = R.AndList R.Tag
 
---toTag :: String -> R.Tag
---toTag s = case s of
---  ('"':'<':_) -> R.WF (strip 2 s)
---  ('"':    _) -> R.Lem (strip 1 s)
---  _           -> R.Tag s
---  where 
---    strip :: Int -> String -> String
---    strip n = drop n . reverse . drop n . reverse
-
 
 showTag :: Tag -> String
 showTag t = case t of
   BOS -> bosString
   EOS -> eosString
-  AND tags -> "(" ++ unwords (map show tags) ++ ")"
-  Tag (Id s) -> s
+  And tags -> "(" ++ unwords (map show tags) ++ ")"
+  Tag id_ -> showId id_
   Lemma l -> showLem l
   WordF w -> showWF w
   --TODO: case-insensitive lemma/wordform + regex
@@ -183,7 +169,7 @@ transTag :: Tag -> TagList
 transTag tag = case tag of
   BOS -> R.And [R.BOS]
   EOS -> R.And [R.EOS]
-  AND tags -> R.And $ concatMap (R.getAndList.transTag) tags  
+  And tags -> R.And $ concatMap (R.getAndList.transTag) tags  
   t@(Tag name) -> R.And [R.Tag (showTag t)]
   l@(Lemma nm) -> R.And [R.Lem (showTag l)]
   w@(WordF nm) -> R.And [R.WF (showTag w)]
@@ -196,12 +182,12 @@ transTag tag = case tag of
 
 transTagSet :: TagSet -> State Env R.TagSet
 transTagSet tagset = case tagset of
-  All         -> return R.All
---  NilT tag    -> return (R.List (R.Or [transTag tag]))
-  OR ts _ ts' -> liftM2 R.Union (transTagSet ts) (transTagSet ts')
+  All -> return R.All
   Diff ts ts' -> liftM2 R.Diff (transTagSet ts) (transTagSet ts')
   Cart ts ts' -> liftM2 R.Diff (transTagSet ts) (transTagSet ts')
-  -- A single tag could be just a single tag, or a reference to a tag list.
+  Union ts _ ts' -> liftM2 R.Union (transTagSet ts) (transTagSet ts')
+
+  -- A tagset consisting of a single tag could be just that, or a named tagset.
   -- No way to decide that by the shape of the identifier, hence trying both ways.
   Named tag   -> do let tagName = showTag tag
                     tags <- getSet tagsets tagName
