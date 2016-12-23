@@ -16,11 +16,11 @@ library
   hs-source-dirs:      src
   exposed-modules:     Rule, Parse
   other-modules:       CG.ErrM, CG.Abs, CG.Lex, CG.Par, CG.Print     
-  build-depends:       array,
-                       base,
-                       BNFC >= 2.8.1,
-                       regex-pcre >= 0.94.4,
-                       mtl >= 2.2.1
+  build-depends:       array
+                     , base
+                     , BNFC >= 2.8.1
+                     , mtl >= 2.2.1
+                     , regex-pcre >= 0.94.4
   default-language:    Haskell2010
 
 executable read-cg
