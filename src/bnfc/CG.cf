@@ -9,6 +9,7 @@ comment "SOFT-DELIMITERS" ;
 comment "AFTER-SECTIONS" ;
 comment "BEFORE-SECTIONS" ;
 comment "NULL-SECTION" ;
+comment "END" ;
 
 -- hacks
 comment "ADD" ; 
@@ -91,12 +92,13 @@ CondCBarrier. Cond2 ::= Position TagSet "CBARRIER" TagSet ;
 CondNotBar.   Cond2 ::= "NOT" Position TagSet "BARRIER" TagSet ;
 CondNotCBar.  Cond2 ::= "NOT" Position TagSet "CBARRIER" TagSet ;
 CondTemplate. Cond2 ::= "T:" Id ; --Can be linked: SELECT (tag) IF (1 foo LINK T:tmpl LINK 1* bar) ;
+
 CondLinked.   Cond1 ::= [Cond2] ; 
-CondNegate.   Cond  ::= "NEGATE" Cond1 ;
 
 CondTemplInl. Cond  ::= "(" [Template] ")" ; -- I think VISL CG-3 accepts it without parentheses.
 											  -- Whatever, this is a terribly easy preprocessing step,
 											  -- and saves me one shift/reduce conflict.
+CondNegate.   Cond ::= "(" "NEGATE" Cond1 ")" ; -- Parentheses ???
 
 _.            Cond ::= "(" Cond1 ")" ;
 
@@ -169,16 +171,16 @@ rules OR ::= "OR" | "|" | "or" ;
 token ComplexId 
       ( -- Ids that start with letters or carefully (=ad hoc) selected symbols
         ('\\'|'+'|'<'|letter)
-               (digit|letter|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!'|'>')*
+               (digit|letter|'/'|'\\'|'_'|','|'+'|'-'|'!'|'¿'|'¡'|'?'|'!'|'>')*
 
       |
  		 -- If an identifier begins with -, it may not end in 'C,' '*', or digit:
  		 -- otherwise positions are recognised as ids.
-        ('-')  (digit|letter|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!'|'>')*
-		(upper - ["C"]|lower|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!'|'>')
+        ('-')  (digit|letter|'/'|'\\'|'_'|','|'+'|'-'|'!'|'¿'|'¡'|'?'|'!'|'>')*
+		(upper - ["C"]|lower|'/'|'\\'|'_'|','|'+'|'-'|'!'|'¿'|'¡'|'?'|'!'|'>')
 
 	  | -- Identifier beginning with - may end in 'C' or '*', if there is no numbers.
-        ('-')  (letter|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!'|'>')+
+        ('-')  (letter|'/'|'\\'|'_'|','|'+'|'-'|'!'|'¿'|'¡'|'?'|'!'|'>')+
 		
       ) ;
 
