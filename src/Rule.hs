@@ -1,8 +1,11 @@
+{-# LANGUAGE FlexibleInstances, OverlappingInstances #-}
+
 module Rule where
 
+import Data.Char ( isUpper )
 import Data.List ( intercalate )
 import Text.Printf ( printf )
---import Text.Regex.PCRE
+import Text.Regex.PCRE
 
 
 --------------------------------------------------------------------------------
@@ -27,6 +30,8 @@ instance Show RName where
 
 instance Show Rule where
   show (R t n trg (And [Always])) = printf "%s%s %s ;"  (show t) (show n) (show trg)
+  show (R (MAP mts) n trg c) = printf "MAP%s %s TARGET %s IF %s" (show n) (show mts)
+                                                                 (show trg) (show c)
   show (R t n trg c) = printf "%s%s %s IF %s ;" (show t) (show n) (show trg) (show c)
 
 --------------------------------------------------------------------------------
@@ -56,6 +61,7 @@ eosSet = tagList EOS
 data Tag = Tag String 
          | Lem String 
          | WF String 
+         | Synt String
          | Subreading Subpos Tag 
          | Rgx String 
          | EOS | BOS deriving (Eq,Ord)
@@ -65,6 +71,8 @@ data Subpos = FromStart Int | FromEnd Int | Wherever
 -- | Following the conventions of vislcg3
 instance Show Tag where
   show (Tag str) = str
+  show (Synt str) = str -- I already include the @ in the name.
+                        -- TODO if it turns out to be important, handle it nicer.
   show (Lem str) = printf "\"%s\"" str
   show (WF str)  = printf "\"<%s>\"" str
   show (Rgx str) =  printf "\"%s\"r" str
@@ -124,12 +132,12 @@ data Context = Ctx { position :: Position
 instance Show Context where
   show (Template cs) = show cs
   show (Negate ctx)  = "NEGATE " ++ show ctx
-  show (Link cs)     = " LINK " `intercalate` map showSingleCtx (getAndList cs)
+  show (Link cs)     = addParens $ intercalate " LINK " $ map singleCtx (getAndList cs)
   show Always        = []
-  show ctx           = addParens (showSingleCtx ctx)
+  show ctx           = addParens (singleCtx ctx)
 
-showSingleCtx (Ctx pos pol ts) = printf "%s%s %s" (show pol) (show pos) (show ts)
-showSingleCtx x                = undefined
+singleCtx (Ctx pos pol ts) = printf "%s%s %s" (show pol) (show pos) (show ts)
+singleCtx x                = undefined
 
 data Position = Pos { scan :: Scan 
                     , careful :: Careful
@@ -155,7 +163,7 @@ showScan (Barrier ts) = ("*", " BARRIER " ++ show ts)
 showScan (CBarrier ts) = ("*", " CBARRIER " ++ show ts)
 
 
-data Careful  = C | NC deriving (Eq,Ord)
+data Careful = C | NC deriving (Eq,Ord)
 
 instance Show Careful where
   show C  = "C"
@@ -165,22 +173,29 @@ data Polarity = Yes | Not deriving (Eq,Ord)
 
 instance Show Polarity where
   show Yes = []
-  show Not = " NOT "
+  show Not = "NOT "
 
 
 
 --------------------------------------------------------------------------------
 -- general-purpose stuff
 
--- I was just tired of using [[Tag]] and remembering if the outer is disjunction and inner conjunction or vice versa.
--- More verbose but maybe less errors.
+-- I was just tired of using [[Tag]] and remembering if the outer is disjunction 
+-- and inner conjunction or vice versa.
+-- More verbose, but maybe less errors, and less ad hoc show functions.
 newtype OrList a = Or { getOrList :: [a] } deriving (Eq,Ord)
 newtype AndList a = And { getAndList :: [a] } deriving (Eq,Ord)
 
 addParens x = "(" ++ x ++ ")"
 
+addParensIf n xs | length xs >= n = addParens $ unwords $ map show xs
+                 | otherwise      = unwords $ map show xs
+
+
+--------------------------------------------------------------------------------
+
 instance (Show a) => Show (AndList a) where
-  show = addParens . filter (/='"') . unwords . map show . getAndList
+  show = unwords . map show . getAndList
 
 instance Functor AndList where
   fmap f (And xs) = And (fmap f xs)
@@ -190,8 +205,16 @@ instance Monoid (AndList a) where
   mempty = And mempty
   mappend (And as) (And bs) = And (mappend as bs)
 
+
+--------------------------------------------------------------------------------
+
+
 instance (Show a) => Show (OrList a) where
-  show = filter (/='"') . intercalate " OR " . map show . getOrList
+  show = intercalate " OR " . map show . getOrList
+
+instance (Show a) => Show (OrList (AndList a)) where
+  show (Or ands) = addParens $ intercalate ")|(" (map show ands)
+
 instance Functor OrList where
   fmap f (Or xs) = Or (fmap f xs)
 instance Foldable OrList where

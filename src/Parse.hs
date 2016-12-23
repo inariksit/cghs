@@ -122,9 +122,9 @@ transRule x = case x of
 
 showId :: Id -> String
 showId (SetName (ComplexId str)) = str
+showId (SetSynt (ComplexId str)) = '@':str
 showId (SetUnif foo) = showId foo --TODO: return to these if I need them someday
 showId (SetMeta foo) = showId (SetName foo)
-showId (SetSynt foo) = showId (SetName foo) 
 showId (SetSem foo) = showId (SetName foo) 
 
 showWF :: WordForm -> String
@@ -174,7 +174,8 @@ transTag :: Tag -> TagList
 transTag tag = case tag of
   BOS -> R.And [R.BOS]
   EOS -> R.And [R.EOS]
-  And tags -> R.And $ concatMap (R.getAndList.transTag) tags  
+  And tags -> R.And $ concatMap (R.getAndList.transTag) tags
+  s@(Tag (SetSynt _)) -> R.And [R.Synt (showTag s)] --TODO if this turns out important, handle it better
   t@(Tag name) -> R.And [R.Tag (showTag t)]
   l@(Lemma nm) -> R.And [R.Lem (showTag l)]
   w@(WordF nm) -> R.And [R.WF (showTag w)]

@@ -13,7 +13,7 @@ main = do args <- getArgs
             [rls] -> do --E.setLocaleEncoding E.utf8 --maybe I'll need it later?
                         text <- readFile rls 
                         let (defs,rules) = parse text
-                        mapM_ print defs
+                        mapM_ putStrLn defs
                         putStrLn ""
                         mapM_ (mapM_ print) rules
             _     -> error "Usage: stack exec read-cg <rules.rlx>"
