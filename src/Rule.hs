@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, OverlappingInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Rule where
 
@@ -209,10 +209,10 @@ instance Monoid (AndList a) where
 --------------------------------------------------------------------------------
 
 
-instance (Show a) => Show (OrList a) where
+instance {-# OVERLAPPABLE #-} (Show a) => Show (OrList a) where
   show = intercalate " OR " . map show . getOrList
 
-instance (Show a) => Show (OrList (AndList a)) where
+instance {-# OVERLAPPABLE #-} (Show a) => Show (OrList (AndList a)) where
   show (Or ands) = addParens $ intercalate ")|(" (map show ands)
 
 instance Functor OrList where
