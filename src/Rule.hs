@@ -137,7 +137,7 @@ instance Show Context where
   show ctx           = addParens (singleCtx ctx)
 
 singleCtx (Ctx pos pol ts) = printf "%s%s %s" (show pol) (show pos) (show ts)
-singleCtx x                = undefined
+singleCtx x                = show x
 
 data Position = Pos { scan :: Scan 
                     , careful :: Careful
