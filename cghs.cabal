@@ -3,19 +3,19 @@ version:             0.1.0.0
 synopsis:            
 description:         Please see README.md
 homepage:            https://github.com/inariksit/cghs#readme
-license:             CC0
+license:             OtherLicense
 license-file:        LICENSE
 author:              Inari Listenmaa
 maintainer:          inari.listenmaa@gmail.com
 category:            Natural Language Processing
-build-type:          Simple
+build-type:          Custom
 extra-source-files:  README.md
 cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
   exposed-modules:     Rule, Parse
-  other-modules:       CG.ErrM, CG.Abs, CG.Lex, CG.Par, CG.Print     
+  other-modules:       CG.Abs, CG.Lex, CG.Par, CG.Print, CG.ErrM
   build-depends:       array
                      , base
                      , BNFC >= 2.8.1

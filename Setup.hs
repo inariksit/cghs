@@ -1,12 +1,18 @@
+
+
 import Distribution.Simple
+import Distribution.Simple.Setup ( BuildFlags )
+import Distribution.PackageDescription ( HookedBuildInfo , emptyHookedBuildInfo )
+
 import System.Process ( callProcess )
 import System.Directory ( withCurrentDirectory )
 
-main = withCurrentDirectory "src" $
-         do callProcess "bnfc"  ["-d", "bnfc/CG.cf"]
-            callProcess "happy" ["-gca", "CG/Par.y"]
-            callProcess "alex"  ["-g", "CG/Lex.x"]
---       defaultMain
+main :: IO ()
+main = defaultMainWithHooks simpleUserHooks { preBuild = runBNFC }
 
---main = defaultMainWithHooks simpleUserHooks { preConf = runBNFC }
--- where runBNFC = undefined
+runBNFC :: Args -> BuildFlags -> IO HookedBuildInfo
+runBNFC _ _ = do withCurrentDirectory "src" $ do
+                    callProcess "bnfc" ["-d", "bnfc/CG.cf"]
+                    callProcess "happy" ["-gca", "CG/Par.y"]
+                    callProcess "alex"  ["-g", "CG/Lex.x"]
+                 return emptyHookedBuildInfo
