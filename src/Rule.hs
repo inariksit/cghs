@@ -1,8 +1,7 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving #-}
 
 module Rule where
 
-import Data.Char ( isUpper )
 import Data.List ( intercalate )
 import Text.Printf ( printf )
 import Text.Regex.PCRE
@@ -68,7 +67,9 @@ data Tag = Tag String
 
 data Subpos = FromStart Int | FromEnd Int | Wherever
 
--- | Following the conventions of vislcg3
+--------------------------------------------------------------------------------
+
+-- Following the conventions of vislcg3
 instance Show Tag where
   show (Tag str) = str
   show (Synt str) = str -- I already include the @ in the name.
@@ -106,7 +107,6 @@ instance Ord Subpos where
   FromEnd   n `compare` FromEnd   m = n `compare` m
 
 
-
 --------------------------------------------------------------------------------
 -- Contextual tests
 
@@ -119,7 +119,7 @@ instance Ord Subpos where
 --               (-2 Baz LINK 1 Quux LINK T:Xyzzy)  -- Link
 --               (NEGATE T:tmpl) -- Negate + Template
 --               ( (-1 Foo) OR (1 Bar) ); -- Inline template
--- This rule has 3 contexts, and all of them must hold
+-- This rule has 4 contexts, and all of them must hold
 data Context = Ctx { position :: Position 
                    , polarity :: Polarity
                    , tags :: TagSet 
@@ -178,53 +178,38 @@ instance Show Polarity where
 
 
 --------------------------------------------------------------------------------
--- general-purpose stuff
+-- General-purpose helper data types
 
--- I was just tired of using [[Tag]] and remembering if the outer is disjunction 
--- and inner conjunction or vice versa.
--- More verbose, but maybe less errors, and less ad hoc show functions.
-newtype OrList a = Or { getOrList :: [a] } deriving (Eq,Ord)
-newtype AndList a = And { getAndList :: [a] } deriving (Eq,Ord)
+-- Newtypes for lists. 
+-- More verbose, but hopefully less prone to errors, and less ad hoc show functions.
 
-addParens x = "(" ++ x ++ ")"
+-- In the rules and tagsets, we need both conjunctions and disjunctions, such as
+-- Conjunctions: 
+-- ● Tags enclosed in parentheses: ("warm" adj), (vblex sg p3)
+-- ● Linked contextual tests: (-1 Adj LINK 1 Noun)
+-- ● List of contextual tests in a rule: REMOVE Adj IF (NOT -1 Det) (NOT 1 Noun)
 
-addParensIf n xs | length xs >= n = addParens $ unwords $ map show xs
-                 | otherwise      = unwords $ map show xs
+-- Disjunctions:
+-- ● Tags not in parentheses: vblex vbser vbaux
+-- ● Tag sets in union: Noun | (PropNoun - Toponym)
+-- ● Contexts inside a template: ((-1C Det) OR (NOT 1 Noun))
 
 
---------------------------------------------------------------------------------
+newtype OrList a = Or { getOrList :: [a] } deriving (Eq,Ord,Functor,Foldable,Monoid)
+newtype AndList a = And { getAndList :: [a] } deriving (Eq,Ord,Functor,Foldable,Monoid)
 
 instance (Show a) => Show (AndList a) where
   show = unwords . map show . getAndList
 
-instance Functor AndList where
-  fmap f (And xs) = And (fmap f xs)
-instance Foldable AndList where
-  foldMap f (And xs) = foldMap f xs
-instance Monoid (AndList a) where
-  mempty = And mempty
-  mappend (And as) (And bs) = And (mappend as bs)
-
-
---------------------------------------------------------------------------------
-
-
 instance {-# OVERLAPPABLE #-} (Show a) => Show (OrList a) where
   show = intercalate " OR " . map show . getOrList
 
-instance {-# OVERLAPPABLE #-} (Show a) => Show (OrList (AndList a)) where
-  show (Or ands) = addParens $ intercalate ")|(" (map show ands)
+instance {-# OVERLAPPABLE #-} Show (OrList (AndList Tag)) where
+  show (Or tags) = addParens $ intercalate ")|(" (map show tags)
 
-instance Functor OrList where
-  fmap f (Or xs) = Or (fmap f xs)
-instance Foldable OrList where
-  foldMap f (Or xs) = foldMap f xs
-instance Monoid (OrList a) where
-  mempty = Or mempty
-  mappend (Or as) (Or bs) = Or (mappend as bs)
+addParens x = "(" ++ x ++ ")"
 
--- foo (bar baz) `mappend` hargle (bargle foo) (bargle bar)
--- === foo (bar baz) hargle (bargle foo) (bargle bar)
+--------------------------------------------------------------------------------
 
 instance Functor Set where
   fmap f (List ts)      = List (fmap (fmap f) ts)
@@ -239,7 +224,6 @@ instance (Show a) => Show (Set a) where
   show (Diff ts ts') = show ts ++ " - " ++ show ts'
   show (Cart ts ts') = show ts ++ " + " ++ show ts'
   show All = "(*)"
-
 
 
 --------------------------------------------------------------------------------
