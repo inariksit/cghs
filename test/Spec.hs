@@ -67,12 +67,12 @@ instance Arbitrary Context where
                  polr <- arbitrary
                  tgst <- arbitrary
                  let simpleContext = Ctx posn polr tgst
-                 frequency $ [ (70, return simpleContext)
-                             , (20, return $ Negate simpleContext)
-                             , (10, return Always)
-                             , (1, fmap Link arbitrary)
-                             , (1, fmap Template arbitrary)
-                             ]
+                 frequency [ (70, return simpleContext)
+                           , (20, return $ Negate simpleContext)
+                           , (10, return Always)
+                           , (1, fmap Link arbitrary)
+                           , (1, fmap Template arbitrary)
+                           ]
 
 instance Arbitrary Polarity where
   arbitrary = elements [ Yes, Not ]

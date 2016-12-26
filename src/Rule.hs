@@ -36,7 +36,15 @@ instance Show Rule where
 --------------------------------------------------------------------------------
 -- Tags and tagsets
 
-type TagSet = Set Tag
+data Tag = Tag String 
+         | Lem String 
+         | WF String 
+         | Synt String
+         | Subreading Subpos Tag 
+         | Rgx String 
+         | EOS | BOS deriving (Eq,Ord)
+
+data Subpos = FromStart Int | FromEnd Int | Wherever
 
 -- Specific structure for VISL CG-3 tag sets and lists.
 -- It's polymorphic just so that I can use fmap and stuff.
@@ -48,24 +56,16 @@ data Set a = List (OrList (AndList a))    -- LIST Foo = foo ("<bar>" bar) baz
 --            | Inters (Set a) (Set a)      -- SET Baz = Foo ∩ Bar
             | All deriving (Eq,Ord)  -- (*)
 
+type TagSet = Set Tag
+
 tagList :: Tag -> TagSet
-tagList tag = List (Or [(And [tag])])
+tagList tag = List (Or [And [tag]])
 
 bosSet :: TagSet
 bosSet = tagList BOS
 
 eosSet :: TagSet
 eosSet = tagList EOS
-
-data Tag = Tag String 
-         | Lem String 
-         | WF String 
-         | Synt String
-         | Subreading Subpos Tag 
-         | Rgx String 
-         | EOS | BOS deriving (Eq,Ord)
-
-data Subpos = FromStart Int | FromEnd Int | Wherever
 
 --------------------------------------------------------------------------------
 
@@ -110,16 +110,16 @@ instance Ord Subpos where
 --------------------------------------------------------------------------------
 -- Contextual tests
 
--- There is a lot of list action happening here, instead of in Rule.
--- Why is that? It's because of NEGATE: it's meaningful to negate a
--- linked context, or a template (named at least, maybe also inline?).
--- There's still a top level AndList Context in the Rule data type:
--- those can be anything specified here.
--- REMOVE Foo IF (-1 Bar)  -- regular Ctx
---               (-2 Baz LINK 1 Quux LINK T:Xyzzy)  -- Link
---               (NEGATE T:tmpl) -- Negate + Template
---               ( (-1 Foo) OR (1 Bar) ); -- Inline template
--- This rule has 4 contexts, and all of them must hold
+{- There is a lot of list action happening here, instead of in Rule.
+   Why is that? It's because of NEGATE: it's meaningful to negate a
+   linked context, or a template (named at least, maybe also inline?).
+   There's still a top level AndList Context in the Rule data type:
+   those can be anything specified here.
+   REMOVE Foo IF (-1 Bar)  -- regular Ctx
+                 (-2 Baz LINK 1 Quux LINK T:Xyzzy)  -- Link
+                 (NEGATE T:tmpl) -- Negate + Template
+                 ( (-1 Foo) OR (1 Bar) ); -- Inline template
+   This rule has 4 contexts, and all of them must hold. -}
 data Context = Ctx { position :: Position 
                    , polarity :: Polarity
                    , tags :: TagSet 

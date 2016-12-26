@@ -197,12 +197,7 @@ transTagSet tagset = case tagset of
   -- No way to decide that by the shape of the identifier, hence trying both ways.
   Named tag   -> do let tagName = showTag tag
                     tags <- getSet tagsets tagName
-                    return $ case tags of
-                      Nothing -> R.List (R.Or [transTag tag])
-                      Just ts -> ts
-
-
-
+                    return $ fromMaybe (R.List (R.Or [transTag tag])) tags
 
 --------------------------------------------------------------------------------
 -- Contextual tests
