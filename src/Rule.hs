@@ -2,7 +2,7 @@
 
 module Rule where
 
-import Data.List ( intercalate )
+import Data.List ( intercalate, intersect, (\\) )
 import Text.Printf ( printf )
 import Text.Regex.PCRE
 
@@ -46,20 +46,23 @@ data Tag = Tag String
 
 data Subpos = FromStart Int | FromEnd Int | Wherever
 
+type Reading = AndList Tag
+
+type TagSet = Set OrList Reading
+
 -- Specific structure for VISL CG-3 tag sets and lists.
 -- It's polymorphic just so that I can use fmap and stuff.
-data Set a = List (OrList (AndList a))    -- LIST Foo = foo ("<bar>" bar) baz
-            | Union (Set a) (Set a)       -- SET Baz = Foo | Bar
-            | Diff (Set a) (Set a)        -- SET Baz = Foo - Bar
-            | Cart (Set a) (Set a)        -- SET Baz = Foo + Bar
---            | SymDif (Set a) (Set a)      -- SET Baz = Foo ∆ Bar
---            | Inters (Set a) (Set a)      -- SET Baz = Foo ∩ Bar
-            | All deriving (Eq,Ord)  -- (*)
+data Set t a = Set (t a)                  -- LIST Foo = foo ("<bar>" bar) baz
+            | Union (Set t a) (Set t a)       -- SET Baz = Foo | Bar
+            | Diff (Set t a) (Set t a)        -- SET Baz = Foo - Bar
+            | Cart (Set t a) (Set t a)        -- SET Baz = Foo + Bar
+--            | SymDif (Set a) (Set a)        -- SET Baz = Foo ∆ Bar
+            | Inters (Set t a) (Set t a)      -- SET Baz = Foo ∩ Bar
+            | All deriving (Eq,Ord)           -- (*)
 
-type TagSet = Set Tag
 
 tagList :: Tag -> TagSet
-tagList tag = List (Or [And [tag]])
+tagList tag = Set (Or [And [tag]])
 
 bosSet :: TagSet
 bosSet = tagList BOS
@@ -193,10 +196,8 @@ instance Show Polarity where
 -- ● Tags not in parentheses: vblex vbser vbaux
 -- ● Tag sets in union: Noun | (PropNoun - Toponym)
 -- ● Contexts inside a template: ((-1C Det) OR (NOT 1 Noun))
-
-
-newtype OrList a = Or { getOrList :: [a] } deriving (Eq,Ord,Functor,Foldable,Monoid)
-newtype AndList a = And { getAndList :: [a] } deriving (Eq,Ord,Functor,Foldable,Monoid)
+newtype OrList a = Or { getOrList :: [a] } deriving (Eq,Ord,Functor,Foldable,Monoid,Applicative) -- ,Monad)
+newtype AndList a = And { getAndList :: [a] } deriving (Eq,Ord,Functor,Foldable,Monoid,Applicative) -- ,Monad)
 
 instance (Show a) => Show (AndList a) where
   show = unwords . map show . getAndList
@@ -207,56 +208,53 @@ instance {-# OVERLAPPABLE #-} (Show a) => Show (OrList a) where
 instance {-# OVERLAPPABLE #-} Show (OrList (AndList Tag)) where
   show (Or tags) = addParens $ intercalate ")|(" (map show tags)
 
+
 addParens x = "(" ++ x ++ ")"
 
 --------------------------------------------------------------------------------
 
-instance Functor Set where
-  fmap f (List ts)      = List (fmap (fmap f) ts)
+instance (Functor t) => Functor (Set t) where
+  fmap f (Set ts)       = Set (fmap f ts)
   fmap f (Union ts ts') = Union (fmap f ts) (fmap f ts')
   fmap f (Diff ts ts')  = Diff (fmap f ts) (fmap f ts')
   fmap f (Cart ts ts')  = Cart (fmap f ts) (fmap f ts')
   fmap f All            = All
 
-instance (Show a) => Show (Set a) where
-  show (List ts) = show ts
+instance (Show (t a)) => Show (Set t a) where
+  show (Set ts) = show ts
   show (Union ts ts') = show ts ++ " | " ++ show ts'
+  show (Inters ts ts') = show ts ++ " ∩ " ++ show ts'
   show (Diff ts ts') = show ts ++ " - " ++ show ts'
   show (Cart ts ts') = show ts ++ " + " ++ show ts'
   show All = "(*)"
 
-
---------------------------------------------------------------------------------
-
---maybe this is not a good idea after all?
---instance Monoid (Set a) where
---  mempty = List (Or [And []])
-
---  mappend All _ = All
---  mappend _ All = All
---  mappend (List as) (List bs) = List (mappend as bs)
---  mappend as@(List _) (Cart ss ts) = Cart (mappend as ss) (mappend as ts)
---  mappend _ _ = undefined
-
-
-{-
-
-"<foo>" REMOVE bar IF baz 
- === REMOVE "<foo>" bar IF baz
-
- target = List (Or [And [Tag "bar"]])
- lemma =  List (Or [And [WF "foo"]])
- mappend lemma target = List (Or [And [Tag "bar", Lem "foo"]])
-
- target = Cart (List (Or [And ["bar"]])) 
-               (List (Or [ And ["bar"], And ["hargle", "bargle"] ])) -- bar (hargle bargle)
- lemma =  List (Or [And [WF "foo"]])
- mappend lemma target =
-          Cart (List (Or [And ["foo", "bar"]]))
-               (List (Or [ And ["foo", bar"], And ["foo", "hargle", "bargle"] ] -- bar (hargle bargle)
-                      )     
-               )
+-- Tagset operations may manipulate the underlying (OrList Reading)s:
+-- ● remove elements
+-- ● add elements
+-- ● specify the underspecified readings (= add new things inside them)
+--normalise :: (Monoid (t a)) => Set t a -> t a
+normalise :: TagSet -> TagSet 
+normalise All = All
+normalise x = Set $ go x
+ where
+  go :: TagSet -> OrList Reading
+  go set = case set of
+    All  -- At top level, keep All.
+      -> Or []  -- For using in set operations, treat it as empty set. 
+    Set readings -> readings
+    Union ts ts' -> go ts `mappend` go ts' -- add elements to ts
+    Inters ts ts' 
+      -> go ts `intersRds` go ts'
+--  Diff ts ts'  -- remove elements from ts
+--      -> go ts `diffRds` go ts' 
+    Cart ts ts'  -- combine elements of ts and ts'
+      -> foldl1 mappend `fmap` sequenceA [go ts, go ts'] --The `fmap (foldl1 mappend)` is just concat. I already derived bunch of typeclasses, better put them in good use!
 
 
--}
+intersRds :: OrList Reading -> OrList Reading -> OrList Reading
+intersRds (Or rds) (Or rds') = undefined
+ where
+  subset (And ts) (And ts') = all (\x -> elem x ts) ts'
+
+
 
