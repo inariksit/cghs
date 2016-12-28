@@ -108,8 +108,8 @@ transRule x = case x of
     newTrg rl ts = rl { R.target = ts }
 
     addTag :: R.Tag -> R.TagSet -> R.TagSet
-    addTag tag (R.List ts) = R.List (R.Or [R.And [tag]] `mappend` ts)
-    addTag tag _           = error "addTag: TODO I should implement other set operations for targets"
+    addTag tag (R.Set ts) = R.Set (R.Or [R.And [tag]] `mappend` ts)
+    addTag tag _          = error "addTag: TODO I should implement other set operations for targets"
 
 
     transName (MaybeName1 (ComplexId nm)) = R.Name nm
@@ -139,7 +139,7 @@ transSetDecl setdecl =
     Set nm tagset -> (,) (showId nm) `fmap` transTagSet tagset
     List nm tags  -> do let tagLists = map transTag tags :: [TagList]
                         let setName = showId nm
-                        return (setName, R.List (R.Or tagLists))
+                        return (setName, R.Set (R.Or tagLists))
 
     BList -> return (bosString, R.bosSet)
     EList -> return (eosString, R.eosSet)
@@ -197,7 +197,7 @@ transTagSet tagset = case tagset of
   -- No way to decide that by the shape of the identifier, hence trying both ways.
   Named tag   -> do let tagName = showTag tag
                     tags <- getSet tagsets tagName
-                    return $ fromMaybe (R.List (R.Or [transTag tag])) tags
+                    return $ fromMaybe (R.Set (R.Or [transTag tag])) tags
 
 --------------------------------------------------------------------------------
 -- Contextual tests
@@ -269,7 +269,7 @@ transSubr subr = case subr of
 
 
 mapSubr :: R.TagSet -> R.Subpos -> R.TagSet
-mapSubr tags sr = R.Subreading sr `fmap` tags
+mapSubr tags sr = (fmap $ R.Subreading sr) `fmap` tags
 
 
 read' :: Signed -> Int
