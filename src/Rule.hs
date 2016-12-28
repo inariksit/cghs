@@ -2,7 +2,10 @@
 
 module Rule where
 
+import Control.Monad ( liftM2 )
+import Data.Foldable ( fold )
 import Data.List ( intercalate, intersect, (\\) )
+import Data.Maybe ( catMaybes )
 import Text.Printf ( printf )
 import Text.Regex.PCRE
 
@@ -232,29 +235,42 @@ instance (Show (t a)) => Show (Set t a) where
 -- ● remove elements
 -- ● add elements
 -- ● specify the underspecified readings (= add new things inside them)
---normalise :: (Monoid (t a)) => Set t a -> t a
-normalise :: TagSet -> TagSet 
-normalise All = All
-normalise x = Set $ go x
+-- We can'no't treat Diffs properly, because we need absolute complement.
+-- Maybe this doesn't make any sense here, and I should only have a
+-- normaliseAbs in CG_SAT?
+normaliseRel :: TagSet -> TagSet 
+normaliseRel set = maybe set Set (go set)
  where
-  go :: TagSet -> OrList Reading
+  go :: TagSet -> Maybe (OrList Reading)
   go set = case set of
-    All  -- At top level, keep All.
-      -> Or []  -- For using in set operations, treat it as empty set. 
-    Set readings -> readings
-    Union ts ts' -> go ts `mappend` go ts' -- add elements to ts
-    Inters ts ts' 
-      -> go ts `intersRds` go ts'
---  Diff ts ts'  -- remove elements from ts
---      -> go ts `diffRds` go ts' 
-    Cart ts ts'  -- combine elements of ts and ts'
-      -> foldl1 mappend `fmap` sequenceA [go ts, go ts'] --The `fmap (foldl1 mappend)` is just concat. I already derived bunch of typeclasses, better put them in good use!
+    All      -> Nothing -- If All is part of a complex TagSet, it normalises to All.
+    Diff _ _ -> Nothing 
+    -- Diff must not be normalised here: eventually we want an
+    -- absolute complement! Tagsets inside Diff can be normalised.
 
+    Set readings  -- No further normalisation
+        -> Just readings
+    Union ts ts' -- Add elements to ts
+        -> liftM2 mappend (go ts) (go ts') 
+    Inters ts ts' -- Remove elements from ts
+        -> liftM2 intersRds (go ts) (go ts')
+    Cart ts ts'  -- Combine elements of ts and ts'
+        -> do normTs  <- go ts
+              normTs' <- go ts'
+              Just (fold `fmap` sequenceA [normTs, normTs'])
 
 intersRds :: OrList Reading -> OrList Reading -> OrList Reading
-intersRds (Or rds) (Or rds') = undefined
- where
-  subset (And ts) (And ts') = all (\x -> elem x ts) ts'
-
-
-
+-- Intended behaviour:
+--   adv adV (ada "very") `intersRds` ada == (ada "very")
+--   adv adV ada `intersRds` (ada "very") == (ada "very")
+-- Because (ada) is an underspecified reading, which includes
+-- the more specified reading (ada "very")
+intersRds rds rds' = Or $ catMaybes [ rd `moreSpecified` rd' 
+                                       | rd  <- getOrList rds
+                                       , rd' <- getOrList rds' ]
+ where -- rd is more specified than rd', if all tags in rd' are in rd
+       -- e.g. rd = (ada "very"), rd' = (ada)
+  moreSpecified :: (Eq a, Foldable t) => t a -> t a -> Maybe (t a)
+  moreSpecified rd rd' | all (`elem` rd) rd' = Just rd
+                       | all (`elem` rd') rd = Just rd'
+                       | otherwise = Nothing
