@@ -103,8 +103,8 @@ transRule x = case x of
 
   where
     always rl = rl { R.context = R.And [R.Always] }
-    select rl = rl { R.rtype = R.SELECT}
-    map_ rl ts = rl { R.rtype = R.MAP ts }
+    select rl = rl { R.oper = R.SELECT}
+    map_ rl ts = rl { R.oper = R.MAP ts }
     newTrg rl ts = rl { R.target = ts }
 
     addTag :: R.Tag -> R.TagSet -> R.TagSet
@@ -113,7 +113,7 @@ transRule x = case x of
 
 
     transName (MaybeName1 (ComplexId nm)) = R.Name nm
-    transName MaybeName2           = R.NoName
+    transName MaybeName2                  = R.NoName
 
 
 

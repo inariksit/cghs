@@ -14,19 +14,19 @@ import Text.Regex.PCRE
 -- Rules
 
 data Rule = 
-    R { rtype :: RType 
-      , rname :: RName
+    R { oper :: Oper
+      , name :: Name
       , target :: TagSet
       , context :: AndList Context
       } deriving (Eq,Ord)
 
-data RType = SELECT | REMOVE | IFF | ADD | MAP TagSet | SUBSTITUTE
+data Oper = SELECT | REMOVE | IFF | ADD | MAP TagSet | SUBSTITUTE
   deriving (Eq,Ord,Show)
 
-data RName = Name String | NoName
+data Name = Name String | NoName
   deriving (Eq,Ord)
 
-instance Show RName where
+instance Show Name where
   show NoName   = []
   show (Name s) = ':':s
 
