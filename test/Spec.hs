@@ -1,23 +1,82 @@
+{-# LANGUAGE FlexibleInstances #-}
+
 module Main where
 
 import Rule
 import Parse
 import Control.Monad ( liftM3, liftM4 )
+
+import Test.HUnit
 import Test.QuickCheck
 
 main :: IO ()
-main = verboseCheck checkRule
+main = do verboseCheck checkRule
+          putStrLn "--------------"
+          putStrLn "Now unit tests:"
+          runTestTT $ TestList [ testNormaliseRelInters1
+                               , testNormaliseRelInters2
+                               , testNormaliseRelCart 
+                               , testNormaliseRelUnion ]
+          putStrLn ""
 
 --just for fun, to see automatically generated CG rules
 checkRule :: Rule -> Bool
 checkRule rule = True
+
+
+--------------------------------------------------------------------------------
+-- Some trivial unit tests
+
+testNormaliseRelInters1 :: Test
+testNormaliseRelInters1 = TestCase $ assertEqual "(ada) ∩ (ada \"very\") results in (ada \"very\")" 
+                                     (normaliseRel (Inters ada adaVery)) (adaVery) 
+
+testNormaliseRelInters2 :: Test
+testNormaliseRelInters2 = TestCase $ assertEqual "(ada \"very\")  ∩ (ada) results in (ada \"very\")" 
+                                     (normaliseRel (Inters adaVery ada)) (adaVery) 
+
+
+ada :: TagSet
+ada = Set (Or [And [Tag "ada"]])
+
+adaVery :: TagSet
+adaVery = Set (Or [And [Tag "ada", Lem "very"]])
+
+
+testNormaliseRelUnion :: Test
+testNormaliseRelUnion = TestCase $ assertEqual "Union foo bar == foo bar"
+                                   (normaliseRel (Union adjN gend))
+                                   (Set (Or [adj,n,f,m]))
+
+testNormaliseRelCart :: Test
+testNormaliseRelCart = TestCase $ assertEqual "adj OR n + m OR f OR mf == (adj m),(adj f),(n m),(n f)"
+                                   (normaliseRel (Cart gend adjN)) 
+                                   (Set (Or [ And [Tag "f", Tag "adj"]
+                                            , And [Tag "f", Tag "n"]
+                                            , And [Tag "m", Tag "adj"]
+                                            , And [Tag "m", Tag "n"]
+                                   ]))
+n :: Reading
+n = And [Tag "n"]
+
+adj :: Reading
+adj = And [Tag "adj"]
+
+adjN :: TagSet
+adjN = Set (Or [adj, n])
+
+m = And [Tag "m"]
+f = And [Tag "f"]
+
+gend :: TagSet
+gend = Set (Or [f, m])
 
 --------------------------------------------------------------------------------
 
 instance Arbitrary Rule where
   arbitrary = liftM4 R arbitrary arbitrary arbitrary arbitrary
 
-instance Arbitrary RType where
+instance Arbitrary Oper where
   arbitrary = frequency [ (50, return REMOVE) 
                         , (45, return SELECT)
                         , (30, fmap MAP arbitrary)
@@ -25,7 +84,7 @@ instance Arbitrary RType where
                         , (10, return ADD)
                         , (10, return SUBSTITUTE)
                         ]
-instance Arbitrary RName where
+instance Arbitrary Name where
   arbitrary = frequency [ (10, return NoName) 
                         , (1, fmap Name (arbitrary `suchThat` atMost 10)) ]
 --------------------------------------------------------------------------------
@@ -79,18 +138,14 @@ instance Arbitrary Polarity where
 
 --------------------------------------------------------------------------------
 
-instance (Arbitrary a) => Arbitrary (Set a) where
-  arbitrary = do as <- listOf arbitrary `suchThat` atMost 5
-                 bs <- listOf arbitrary `suchThat` atMost 5
-                 let simpleAs  = List (Or [And as])
-                 let simpleBs  = List (Or [And bs])
-                 let simpleABs = List (Or [And as, And bs])
+instance Arbitrary (Set OrList Reading) where
+  arbitrary = do as <- Set `fmap` arbitrary
+                 bs <- Set `fmap` arbitrary
                  frequency [ (3, return All)
-                           , (30, return simpleAs)
-                           , (50, return simpleABs)
-                           , (1,  return $ Union simpleAs simpleBs)
-                           , (10, return $ Diff simpleAs simpleBs)
-                           , (10, return $ Cart simpleAs simpleBs)
+                           , (30, return as)
+                           , (1,  return $ Union as bs)
+                           , (10, return $ Diff as bs)
+                           , (10, return $ Cart as bs)
                            ]
 
 instance (Arbitrary a) => Arbitrary (AndList a) where
