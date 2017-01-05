@@ -6,4 +6,4 @@ This repository will contain
 
 * Data type: src/Rule.hs
 * Parser: BNFC grammars in src/bnfc, and transformation into Haskell data types in src/Parse.hs. The BNFC grammars are terrible, I just started writing it when I didn't think this would be my biggest academic achievement. Maybe one day I'll use the thing that Tino Didriksen uses.
-* QuickCheck tests and generators. So you can test your stuff, and play a party game "was this CG rule written by a human or QuickCheck generator".
+* So far, a few unit tests, and QuickCheck generators for the rules and all necessary things. So you can test your stuff, and play a party game "was this CG rule written by a human or QuickCheck generator".
