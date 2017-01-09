@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving, DeriveTraversable #-}
 
 module Rule where
 
@@ -199,8 +199,8 @@ instance Show Polarity where
 -- ● Tags not in parentheses: vblex vbser vbaux
 -- ● Tag sets in union: Noun | (PropNoun - Toponym)
 -- ● Contexts inside a template: ((-1C Det) OR (NOT 1 Noun))
-newtype OrList a = Or { getOrList :: [a] } deriving (Eq,Ord,Functor,Foldable,Monoid,Applicative) -- ,Monad)
-newtype AndList a = And { getAndList :: [a] } deriving (Eq,Ord,Functor,Foldable,Monoid,Applicative) -- ,Monad)
+newtype OrList a = Or { getOrList :: [a] } deriving (Eq,Ord,Functor,Foldable,Monoid,Applicative,Traversable)
+newtype AndList a = And { getAndList :: [a] } deriving (Eq,Ord,Functor,Foldable,Monoid,Applicative)
 
 instance (Show a) => Show (AndList a) where
   show = unwords . map show . getAndList
