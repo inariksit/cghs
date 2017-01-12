@@ -10,6 +10,8 @@ import Text.Printf ( printf )
 import Text.Regex.PCRE
 
 
+--import GHC.Exts ( IsList(..) )
+
 --------------------------------------------------------------------------------
 -- Rules
 
@@ -145,6 +147,27 @@ instance Show Context where
 singleCtx (Ctx pos pol ts) = printf "%s%s %s" (show pol) (show pos) (show ts)
 singleCtx x                = show x
 
+
+-- Helper functions to manipulate contextual tests
+width :: Context  --TODO: test this function
+      -> OrList Int -- Due to templates and *s, one context may permit different widths
+width c = case c of
+  Always      -> Or [1]
+  Ctx ps pl t -> Or [pos ps] -- (-1, 5*, 2 BARRIER foo)
+  Link cs     -> Or [maximum $ map (pos.position) $ getAndList cs]
+  Template cs -> fold $ fmap width cs 
+  Negate ctx  -> width ctx
+
+
+normaliseLinkedCtx :: Context -> AndList Context
+normaliseLinkedCtx (Link cs) = undefined
+ where
+  (frst,rest) = (head $ getAndList cs, tail $ getAndList cs)
+
+normaliseLinkedCtx _ = error "not a linked contextual test"
+
+--------------------------------------------------------------------------------
+
 data Position = Pos { scan :: Scan 
                     , careful :: Careful
                     , pos :: Int 
@@ -211,7 +234,6 @@ instance {-# OVERLAPPABLE #-} (Show a) => Show (OrList a) where
 instance {-# OVERLAPPABLE #-} Show (OrList (AndList Tag)) where
   show (Or tags) = addParens $ intercalate ")|(" (map show tags)
 
-
 addParens x = "(" ++ x ++ ")"
 
 --------------------------------------------------------------------------------
@@ -255,8 +277,8 @@ normaliseRel set = maybe set Set (go set)
     Inters ts ts' -- Remove elements from ts
         -> liftM2 intersRds (go ts) (go ts')
     Cart ts ts'  -- Combine elements of ts and ts'
-        -> do normTs  <- go ts
-              normTs' <- go ts'
+        -> do normTs  <- go ts :: Maybe (OrList Reading)
+              normTs' <- go ts' :: Maybe (OrList Reading)
               Just (fold `fmap` sequenceA [normTs, normTs'])
 
 intersRds :: OrList Reading -> OrList Reading -> OrList Reading
