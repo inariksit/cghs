@@ -10,8 +10,6 @@ import Text.Printf ( printf )
 import Text.Regex.PCRE
 
 
---import GHC.Exts ( IsList(..) )
-
 --------------------------------------------------------------------------------
 -- Rules
 
@@ -223,7 +221,7 @@ instance Show Polarity where
 -- ● Tag sets in union: Noun | (PropNoun - Toponym)
 -- ● Contexts inside a template: ((-1C Det) OR (NOT 1 Noun))
 newtype OrList a = Or { getOrList :: [a] } deriving (Eq,Ord,Functor,Foldable,Monoid,Applicative,Traversable)
-newtype AndList a = And { getAndList :: [a] } deriving (Eq,Ord,Functor,Foldable,Monoid,Applicative)
+newtype AndList a = And { getAndList :: [a] } deriving (Eq,Ord,Functor,Foldable,Monoid,Applicative,Traversable)
 
 instance (Show a) => Show (AndList a) where
   show = unwords . map show . getAndList
