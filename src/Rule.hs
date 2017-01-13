@@ -2,10 +2,8 @@
 
 module Rule where
 
-import Control.Monad ( liftM2 )
-import Data.Foldable ( fold )
-import Data.List ( intercalate, intersect, (\\) )
-import Data.Maybe ( catMaybes )
+--import Utils
+import Data.List ( intercalate )
 import Text.Printf ( printf )
 import Text.Regex.PCRE
 
@@ -146,34 +144,9 @@ singleCtx (Ctx pos pol ts) = printf "%s%s %s" (show pol) (show pos) (show ts)
 singleCtx x                = show x
 
 
--- Helper functions to manipulate contextual tests
-width :: Context  --TODO: test this function
-      -> OrList Int -- Due to templates and *, one context may permit different widths
-width c = case c of
-  Always      -> Or [1]
-  Ctx ps pl t -> Or [pos ps] -- (-1, 5*, 2 BARRIER foo)
-  c@(Link _)  -> let cs = normaliseLinkedCtx c
-                     lastC = last $ getAndList cs
-                 in Or [pos $ position lastC]
-  Template cs -> fold $ fmap width cs 
-  Negate ctx  -> width ctx
-
-
-normaliseLinkedCtx :: Context -> AndList Context
-normaliseLinkedCtx (Link cs) = And (frst:fixPos posFrst rest [])
- where
-  (frst,rest) = (head $ getAndList cs, tail $ getAndList cs)
-  posFrst = pos $ position frst
-
-  fixPos base []               res = res
-  fixPos base (Ctx ps pl t:cs) res = --trace (show c ++ " " ++ show res) $
-    let newBase = base + pos ps
-        newPos = ps { pos = newBase }
-    in fixPos newBase cs (Ctx newPos pl t:res)  
-
-normaliseLinkedCtx _ = error "not a linked contextual test"
 
 --------------------------------------------------------------------------------
+-- Positions
 
 data Position = Pos { scan :: Scan 
                     , careful :: Careful
@@ -190,13 +163,14 @@ data Scan = Exactly
           | CBarrier TagSet deriving (Eq,Ord)
 
 instance Show Scan where
-  show sc = let (a,b) = showScan sc in a++b
+  show sc = uncurry (++) (showScan sc)
 
 showScan :: Scan -> (String,String)
 showScan Exactly = ([],[])
 showScan AtLeast = ("*",[])
 showScan (Barrier ts) = ("*", " BARRIER " ++ show ts)
 showScan (CBarrier ts) = ("*", " CBARRIER " ++ show ts)
+
 
 
 data Careful = C | NC deriving (Eq,Ord)
@@ -259,47 +233,3 @@ instance (Show (t a)) => Show (Set t a) where
   show (Diff ts ts') = show ts ++ " - " ++ show ts'
   show (Cart ts ts') = show ts ++ " + " ++ show ts'
   show All = "(*)"
-
--- Tagset operations may manipulate the underlying (OrList Reading)s:
--- ● remove elements
--- ● add elements
--- ● specify the underspecified readings (= add new things inside them)
--- We can'no't treat Diffs properly, because we need absolute complement.
--- Maybe this doesn't make any sense here, and I should only have a
--- normaliseAbs in CG_SAT?
-normaliseRel :: TagSet -> TagSet 
-normaliseRel set = maybe set Set (go set)
- where
-  go :: TagSet -> Maybe (OrList Reading)
-  go set = case set of
-    All      -> Nothing -- If All is part of a complex TagSet, it normalises to All.
-    Diff _ _ -> Nothing 
-    -- Diff must not be normalised here: eventually we want an
-    -- absolute complement! Tagsets inside Diff can be normalised.
-
-    Set readings  -- No further normalisation
-        -> Just readings
-    Union ts ts' -- Add elements to ts
-        -> liftM2 mappend (go ts) (go ts') 
-    Inters ts ts' -- Remove elements from ts
-        -> liftM2 intersRds (go ts) (go ts')
-    Cart ts ts'  -- Combine elements of ts and ts'
-        -> do normTs  <- go ts :: Maybe (OrList Reading)
-              normTs' <- go ts' :: Maybe (OrList Reading)
-              Just (fold `fmap` sequenceA [normTs, normTs'])
-
-intersRds :: OrList Reading -> OrList Reading -> OrList Reading
--- Intended behaviour:
---   adv adV (ada "very") `intersRds` ada == (ada "very")
---   adv adV ada `intersRds` (ada "very") == (ada "very")
--- Because (ada) is an underspecified reading, which includes
--- the more specified reading (ada "very")
-intersRds rds rds' = Or $ catMaybes [ rd `moreSpecified` rd' 
-                                       | rd  <- getOrList rds
-                                       , rd' <- getOrList rds' ]
- where -- rd is more specified than rd', if all tags in rd' are in rd
-       -- e.g. rd = (ada "very"), rd' = (ada)
-  moreSpecified :: (Eq a, Foldable t) => t a -> t a -> Maybe (t a)
-  moreSpecified rd rd' | all (`elem` rd) rd' = Just rd
-                       | all (`elem` rd') rd = Just rd'
-                       | otherwise = Nothing

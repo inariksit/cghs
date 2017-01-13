@@ -4,6 +4,7 @@ module Main where
 
 import Rule
 import Parse
+import Utils
 import Control.Monad ( liftM3, liftM4 )
 
 import Test.HUnit
@@ -71,11 +72,11 @@ testNormaliseLinkedCtx4 =
 
 testNormaliseRelInters1 :: Test
 testNormaliseRelInters1 = TestCase $ assertEqual "(ada) ∩ (ada \"very\") results in (ada \"very\")" 
-                                     (normaliseRel (Inters ada adaVery)) adaVery
+                                     (normaliseTagsetRel (Inters ada adaVery)) adaVery
 
 testNormaliseRelInters2 :: Test
 testNormaliseRelInters2 = TestCase $ assertEqual "(ada \"very\")  ∩ (ada) results in (ada \"very\")" 
-                                     (normaliseRel (Inters adaVery ada)) adaVery
+                                     (normaliseTagsetRel (Inters adaVery ada)) adaVery
 
 
 ada :: TagSet
@@ -87,12 +88,12 @@ adaVery = Set (Or [And [Tag "ada", Lem "very"]])
 
 testNormaliseRelUnion :: Test
 testNormaliseRelUnion = TestCase $ assertEqual "Union foo bar == foo bar"
-                                   (normaliseRel (Union adjN gend))
+                                   (normaliseTagsetRel (Union adjN gend))
                                    (Set (Or [adj,n,f,m]))
 
 testNormaliseRelCart :: Test
 testNormaliseRelCart = TestCase $ assertEqual "adj OR n + m OR f OR mf == (adj m),(adj f),(n m),(n f)"
-                                   (normaliseRel (Cart gend adjN)) 
+                                   (normaliseTagsetRel (Cart gend adjN)) 
                                    (Set (Or [ And [Tag "f", Tag "adj"]
                                             , And [Tag "f", Tag "n"]
                                             , And [Tag "m", Tag "adj"]
