@@ -31,7 +31,7 @@ checkRule rule = True
 
 
 --------------------------------------------------------------------------------
--- Some trivial unit tests
+-- Some unit tests
 
 testNormaliseLinkedCtx1 :: Test
 testNormaliseLinkedCtx1 = 
@@ -71,11 +71,11 @@ testNormaliseLinkedCtx4 =
 
 testNormaliseRelInters1 :: Test
 testNormaliseRelInters1 = TestCase $ assertEqual "(ada) ∩ (ada \"very\") results in (ada \"very\")" 
-                                     (normaliseRel (Inters ada adaVery)) (adaVery) 
+                                     (normaliseRel (Inters ada adaVery)) adaVery
 
 testNormaliseRelInters2 :: Test
 testNormaliseRelInters2 = TestCase $ assertEqual "(ada \"very\")  ∩ (ada) results in (ada \"very\")" 
-                                     (normaliseRel (Inters adaVery ada)) (adaVery) 
+                                     (normaliseRel (Inters adaVery ada)) adaVery
 
 
 ada :: TagSet

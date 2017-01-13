@@ -269,7 +269,7 @@ transSubr subr = case subr of
 
 
 mapSubr :: R.TagSet -> R.Subpos -> R.TagSet
-mapSubr tags sr = (fmap $ R.Subreading sr) `fmap` tags
+mapSubr tags sr = fmap (R.Subreading sr) `fmap` tags
 
 
 read' :: Signed -> Int
