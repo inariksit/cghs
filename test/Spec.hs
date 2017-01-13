@@ -16,9 +16,15 @@ main = do verboseCheck checkRule
           runTestTT $ TestList [ testNormaliseRelInters1
                                , testNormaliseRelInters2
                                , testNormaliseRelCart 
-                               , testNormaliseRelUnion ]
+                               , testNormaliseRelUnion
+                               , testNormaliseLinkedCtx1 
+                               , testNormaliseLinkedCtx2 
+                               , testNormaliseLinkedCtx3 
+                               , testNormaliseLinkedCtx4 
+                               ]
           putStrLn ""
 
+--------------------------------------------------------------------------------
 --just for fun, to see automatically generated CG rules
 checkRule :: Rule -> Bool
 checkRule rule = True
@@ -26,6 +32,42 @@ checkRule rule = True
 
 --------------------------------------------------------------------------------
 -- Some trivial unit tests
+
+testNormaliseLinkedCtx1 :: Test
+testNormaliseLinkedCtx1 = 
+  TestCase $ assertEqual "normaliseLinkedCtx" 
+             normC1 (normaliseLinkedCtx (head $ getAndList ctx1))
+
+testNormaliseLinkedCtx2 :: Test
+testNormaliseLinkedCtx2 = 
+  TestCase $ assertEqual "normaliseLinkedCtx" 
+             normC2 (normaliseLinkedCtx (head $ getAndList ctx2))
+
+testNormaliseLinkedCtx3 :: Test
+testNormaliseLinkedCtx3 = 
+  TestCase $ assertEqual "normaliseLinkedCtx" 
+            normC3 (normaliseLinkedCtx (head $ getAndList ctx3))
+
+testNormaliseLinkedCtx4 :: Test
+testNormaliseLinkedCtx4 = 
+  TestCase $ assertEqual "normaliseLinkedCtx" 
+            normC4 (normaliseLinkedCtx (head $ getAndList ctx4))
+
+
+
+(_,linkRules) = parse "SECTION \
+\ SELECT (a) IF (1  (b) LINK 0 (c) LINK 1  (d)) ; \
+\ SELECT (a) IF (1 (b))     (1 (c))     (2 (d)) ; \
+
+\ SELECT (a) IF (1  (b) LINK 0 (c) LINK -1 (d)) ; \
+\ SELECT (a) IF (1 (b))     (1 (c))     (0 (d)) ; \
+
+\ SELECT (a) IF (-1 (b) LINK 0 (c) LINK 1  (d)) ; \
+\ SELECT (a) IF (-1 (b))   (-1 (c))     (0 (d)) ; \
+
+\ SELECT (a) IF (-1 (b) LINK 0 (c) LINK -1 (d)) ; \
+\ SELECT (a) IF (-1 (b))   (-1 (c))    (-2 (d)) ;"
+(ctx1:normC1:ctx2:normC2:ctx3:normC3:ctx4:normC4:_) = map context (concat linkRules)
 
 testNormaliseRelInters1 :: Test
 testNormaliseRelInters1 = TestCase $ assertEqual "(ada) ∩ (ada \"very\") results in (ada \"very\")" 

@@ -130,7 +130,7 @@ data Context = Ctx { position :: Position
                    , polarity :: Polarity
                    , tags :: TagSet 
                    } 
-             | Link (AndList Context)
+             | Link { linkcs :: AndList Context }-- Relative positions are kept for printing
              | Template (OrList Context) -- same for inline and named
              | Negate Context
              | Always deriving (Eq,Ord)
@@ -148,19 +148,26 @@ singleCtx x                = show x
 
 -- Helper functions to manipulate contextual tests
 width :: Context  --TODO: test this function
-      -> OrList Int -- Due to templates and *s, one context may permit different widths
+      -> OrList Int -- Due to templates and *, one context may permit different widths
 width c = case c of
   Always      -> Or [1]
   Ctx ps pl t -> Or [pos ps] -- (-1, 5*, 2 BARRIER foo)
-  Link cs     -> Or [maximum $ map (pos.position) $ getAndList cs]
+  c@(Link cs) -> Or [maximum $ map (pos.position) $ getAndList $ normaliseLinkedCtx c]
   Template cs -> fold $ fmap width cs 
   Negate ctx  -> width ctx
 
 
 normaliseLinkedCtx :: Context -> AndList Context
-normaliseLinkedCtx (Link cs) = undefined
+normaliseLinkedCtx (Link cs) = And (frst:fixPos posFrst rest [])
  where
   (frst,rest) = (head $ getAndList cs, tail $ getAndList cs)
+  posFrst = pos $ position frst
+
+  fixPos base []               res = res
+  fixPos base (Ctx ps pl t:cs) res = --trace (show c ++ " " ++ show res) $
+    let newBase = base + pos ps
+        newPos = ps { pos = newBase }
+    in fixPos newBase cs (Ctx newPos pl t:res)  
 
 normaliseLinkedCtx _ = error "not a linked contextual test"
 
