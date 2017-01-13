@@ -151,10 +151,10 @@ width :: Context  --TODO: test this function
       -> OrList Int -- Due to templates and *, one context may permit different widths
 width c = case c of
   Always      -> Or [1]
-  Ctx ps pl t -> Or [abs $ pos ps] -- (-1, 5*, 2 BARRIER foo)
+  Ctx ps pl t -> Or [pos ps] -- (-1, 5*, 2 BARRIER foo)
   c@(Link _)  -> let cs = normaliseLinkedCtx c
                      lastC = last $ getAndList cs
-                 in Or [abs $ pos $ position lastC]
+                 in Or [pos $ position lastC]
   Template cs -> fold $ fmap width cs 
   Negate ctx  -> width ctx
 
