@@ -159,8 +159,8 @@ instance Show Position where
 
 data Scan = Exactly 
           | AtLeast 
-          | Barrier TagSet 
-          | CBarrier TagSet deriving (Eq,Ord)
+          | Barrier { btags :: TagSet }
+          | CBarrier { cbtags :: TagSet } deriving (Eq,Ord)
 
 instance Show Scan where
   show sc = uncurry (++) (showScan sc)
