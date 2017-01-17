@@ -14,13 +14,13 @@ import Data.List
 import Data.Maybe
 --import Text.Regex.PCRE
 
-type Result = ([String], [[R.Rule]]) -- sections
+type Result = ([R.TagSet], [[R.Rule]]) -- sections
 
 parse :: String -> Result 
 parse s = case pGrammar (CG.Par.myLexer s) of
   Bad err  -> error err
   Ok  tree -> let (rls,env) = runState (parseRules tree) emptyEnv
-              in  ( map (show.snd) (tagsets env) ++ map (show.snd) (templates env)
+              in  ( map snd (tagsets env) -- ++ map (show.snd) (templates env)
                  , rls )
 
 --------------------------------------------------------------------------------
