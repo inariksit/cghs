@@ -96,12 +96,14 @@ normaliseLinkedCtx _ = error "not a linked contextual test"
 -- Positions 
 
 -- | When applied to a sentence and target, change a Position
--- into a concrete list of indices, where the contextual test should hold
+-- into a concrete list of indices, where the contextual test should hold.
+-- Empty OrList = position is out of scope.
 normalisePosition :: Position -> Int -> Int -> OrList Int
 normalisePosition posn senlen origin = case scan posn of 
-  Exactly -> Or [origin + relInd]
+  Exactly -> Or [ absInd | absInd >= 1 && absInd <= senlen ]
   _       -> Or absInds
  where
   relInd = pos posn
+  absInd = origin + relInd
   absInds = if relInd<0 then [1 .. origin+relInd]
                 else [origin+relInd .. senlen]
