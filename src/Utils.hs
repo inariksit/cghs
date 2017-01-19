@@ -5,6 +5,7 @@ module Utils ( scopes
              , normalisePosition 
              , normaliseTagsetRel 
              , parseReadingApe
+             , parseReadingApeSubr
              , tagSet2Readings
              , readTag
              )
