@@ -4,6 +4,9 @@ module Utils ( scopes
              , normaliseLinkedCtx 
              , normalisePosition 
              , normaliseTagsetRel 
+             , parseReadingApe
+             , tagSet2Readings
+             , readTag
              )
 where
 
@@ -107,3 +110,43 @@ normalisePosition posn senlen origin = case scan posn of
   absInd = origin + relInd
   absInds = if relInd<0 then [1 .. origin+relInd]
                 else [origin+relInd .. senlen]
+
+----------------------------------------------------------------------------
+-- Alternative read functions
+
+parseReadingApeSubr :: String -> Reading
+parseReadingApeSubr str = And $ maintags ++ concat subtags
+ where
+  (mainr:subrs) = split (=='+') str
+  maintags = map readTag $ filter (not.null) $ split isValid mainr
+  subrs_ns = map FromStart [1..] `zip` map (split isValid) subrs :: [(Subpos,[String])]
+  subtags = map (\(n, strs) -> map (Subreading n . readTag) strs) subrs_ns
+  isValid = (=='<') 
+
+
+parseReadingApe :: String -> Reading
+parseReadingApe = And . map readTag . filter (not.null) . split (=='<')
+
+-- If you just want to get a quick and dirty list of readings from tag sets.
+-- Suitable e.g. for extracting readings from the grammar: we don't care about
+-- the relations, just want to know all different readings someone ever wrote.
+tagSet2Readings :: TagSet -> [Reading]
+tagSet2Readings ts = case normaliseTagsetRel ts of
+  Set rds    -> getOrList rds
+  All        -> [] --TODO ??
+  Diff rs ts -> tagSet2Readings rs ++ tagSet2Readings ts -- TODO
+
+
+-- reading Apertium format, not same as in cghs/Parse
+readTag :: String -> Tag
+readTag ">>>" = BOS
+readTag "<<<" = EOS
+readTag []    = error "empty tag"
+readTag str | head str == '@' = Synt (init str)
+            | last str == '>' = Tag (init str)
+            | last str == '$' = WF (init str)
+            | otherwise       = Lem str
+
+split :: (a -> Bool) -> [a] -> [[a]]
+split p [] = []
+split p xs = takeWhile (not . p) xs : split p (drop 1 (dropWhile (not . p) xs))
