@@ -4,6 +4,8 @@ module Utils ( scopes
              , normaliseLinkedCtx 
              , normalisePosition 
              , normaliseTagsetRel 
+             , isLex
+             , removeLexTags 
              , parseReadingApe
              , parseReadingApeSubr
              , tagSet2Readings
@@ -16,7 +18,7 @@ import Rule
 import Control.Monad ( liftM2 )
 
 import Data.Foldable ( fold )
-import Data.List ( intercalate, intersect, (\\) )
+import Data.List ( intercalate, intersect, (\\), partition )
 import Data.Maybe ( catMaybes )
 
 
@@ -67,6 +69,14 @@ intersRds rds rds' = Or $ catMaybes [ rd `moreSpecified` rd'
                        | all (`elem` rd') rd = Just rd'
                        | otherwise = Nothing
 
+removeLexTags :: Reading -> (Reading, [Tag])
+removeLexTags (And rd) = (And nolx, lx)
+ where (nolx,lx) = partition isLex rd
+
+isLex :: Tag -> Bool
+isLex (Lem _) = True
+isLex (WF _)  = True
+isLex _       = False
 --------------------------------------------------------------------------------
 -- Contextual tests
 
