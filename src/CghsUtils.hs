@@ -1,11 +1,11 @@
 -- Helper functions to manipulate Rules and their parts
 
-module Utils ( scopes 
+module CghsUtils ( scopes 
              , normaliseLinkedCtx 
              , normalisePosition 
              , normaliseTagsetRel 
              , isLex
-             , removeLexTags 
+             , removeLexReading
              , parseReadingApe
              , parseReadingApeSubr
              , tagSet2Readings
@@ -69,9 +69,9 @@ intersRds rds rds' = Or $ catMaybes [ rd `moreSpecified` rd'
                        | all (`elem` rd') rd = Just rd'
                        | otherwise = Nothing
 
-removeLexTags :: Reading -> (Reading, [Tag])
-removeLexTags (And rd) = (And nolx, lx)
- where (nolx,lx) = partition isLex rd
+removeLexReading :: Reading -> (Reading, [Tag])
+removeLexReading (And rd) = (And nolx, lx)
+ where (lx,nolx) = partition isLex rd
 
 isLex :: Tag -> Bool
 isLex (Lem _) = True
