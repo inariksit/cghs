@@ -1,10 +1,7 @@
 module Main where
 
-import Rule
-import Parse ( parse )
-
+import CGHS ( Rule(..), TagSet, parse )
 import System.Environment ( getArgs )
---import qualified GHC.IO.Encoding as E
 
 
 main :: IO ()

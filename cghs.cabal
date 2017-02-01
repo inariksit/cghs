@@ -14,8 +14,9 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Rule, Parse, CghsUtils
-  other-modules:       CG.Abs, CG.Lex, CG.Par, CG.Print, CG.ErrM
+  exposed-modules:     CGHS, CGHS.Rule
+  other-modules:       CGHS.Containers, CGHS.Parse, CGHS.Utils,
+                       CG.Abs, CG.Lex, CG.Par, CG.Print, CG.ErrM
   build-depends:       array
                      , base
                      , BNFC >= 2.8.1

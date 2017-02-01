@@ -1,19 +1,9 @@
 -- Helper functions to manipulate Rules and their parts
 
-module CghsUtils ( scopes 
-             , normaliseLinkedCtx 
-             , normalisePosition 
-             , normaliseTagsetRel 
-             , isLex
-             , removeLexReading
-             , parseReadingApe
-             , parseReadingApeSubr
-             , tagSet2Readings
-             , readTag
-             )
-where
+module CGHS.Utils where
 
-import Rule
+import CGHS.Containers
+import CGHS.Rule
 
 import Control.Monad ( liftM2 )
 
@@ -52,6 +42,7 @@ normaliseTagsetRel set = maybe set Set (go set)
         -> do normTs  <- go ts :: Maybe (OrList Reading)
               normTs' <- go ts' :: Maybe (OrList Reading)
               Just (fold `fmap` sequenceA [normTs, normTs'])
+
 
 intersRds :: OrList Reading -> OrList Reading -> OrList Reading
 -- Intended behaviour:

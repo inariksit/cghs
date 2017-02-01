@@ -1,7 +1,7 @@
-module Parse ( parse
-             ) where
+module CGHS.Parse ( parse ) where
 
-import qualified Rule as R
+import qualified CGHS.Containers as C
+import qualified CGHS.Rule as R
 import CG.Abs
 import CG.Lex
 import CG.Par
@@ -78,7 +78,7 @@ transRule x = case x of
           ctx <- mapM transCond cs
           let trgSubr = maybe trg (mapSubr trg) (transSubr sr)
           let name = transName nm          
-          return (R.R R.REMOVE name trgSubr (R.And ctx))
+          return (R.R R.REMOVE name trgSubr (C.And ctx))
   RemoveAlways nm sr tags
     -> always `fmap` transRule (RemoveIf nm sr tags MaybeIF_IF [])
   SelectIf nm sr tags x cs 
@@ -102,13 +102,13 @@ transRule x = case x of
   
 
   where
-    always rl = rl { R.context = R.And [R.Always] }
+    always rl = rl { R.context = C.And [R.Always] }
     select rl = rl { R.oper = R.SELECT}
     map_ rl ts = rl { R.oper = R.MAP ts }
     newTrg rl ts = rl { R.target = ts }
 
     addTag :: R.Tag -> R.TagSet -> R.TagSet
-    addTag tag (R.Set ts) = R.Set (R.Or [R.And [tag]] `mappend` ts)
+    addTag tag (C.Set ts) = C.Set (C.Or [C.And [tag]] `mappend` ts)
     addTag tag _          = error "addTag: TODO I should implement other set operations for targets"
 
 
@@ -139,7 +139,7 @@ transSetDecl setdecl =
     Set nm tagset -> (,) (showId nm) `fmap` transTagSet tagset
     List nm tags  -> do let tagLists = map transTag tags :: [TagList]
                         let setName = showId nm
-                        return (setName, R.Set (R.Or tagLists))
+                        return (setName, C.Set (C.Or tagLists))
 
     BList -> return (bosString, R.bosSet)
     EList -> return (eosString, R.eosSet)
@@ -154,7 +154,7 @@ transTemplDecl templ = case templ of
 --------------------------------------------------------------------------------
 -- Tags and tagsets
 
-type TagList = R.AndList R.Tag
+type TagList = C.AndList R.Tag
 
 
 showTag :: Tag -> String
@@ -172,32 +172,32 @@ showTag t = case t of
 
 transTag :: Tag -> TagList
 transTag tag = case tag of
-  BOS -> R.And [R.BOS]
-  EOS -> R.And [R.EOS]
-  And tags -> R.And $ concatMap (R.getAndList.transTag) tags
-  s@(Tag (SetSynt _)) -> R.And [R.Synt (showTag s)] --TODO if this turns out important, handle it better
-  t@(Tag name) -> R.And [R.Tag (showTag t)]
-  l@(Lemma nm) -> R.And [R.Lem (showTag l)]
-  w@(WordF nm) -> R.And [R.WF (showTag w)]
+  BOS -> C.And [R.BOS]
+  EOS -> C.And [R.EOS]
+  And tags -> C.And $ concatMap (C.getAndList.transTag) tags
+  s@(Tag (SetSynt _)) -> C.And [R.Synt (showTag s)] --TODO if this turns out important, handle it better
+  t@(Tag name) -> C.And [R.Tag (showTag t)]
+  l@(Lemma nm) -> C.And [R.Lem (showTag l)]
+  w@(WordF nm) -> C.And [R.WF (showTag w)]
   --TODO: case-insensitive lemma + regex
   LemmaCI foo   -> transTag (Lemma foo) 
   WordFCI foo   -> transTag (WordF foo)
-  Regex foo     -> R.And [R.Rgx (show foo)] 
+  Regex foo     -> C.And [R.Rgx (show foo)] 
 
 
 
 transTagSet :: TagSet -> State Env R.TagSet
 transTagSet tagset = case tagset of
-  All -> return R.All
-  Diff ts ts' -> liftM2 R.Diff (transTagSet ts) (transTagSet ts')
-  Cart ts ts' -> liftM2 R.Diff (transTagSet ts) (transTagSet ts')
-  Union ts _ ts' -> liftM2 R.Union (transTagSet ts) (transTagSet ts')
+  All -> return C.All
+  Diff ts ts' -> liftM2 C.Diff (transTagSet ts) (transTagSet ts')
+  Cart ts ts' -> liftM2 C.Diff (transTagSet ts) (transTagSet ts')
+  Union ts _ ts' -> liftM2 C.Union (transTagSet ts) (transTagSet ts')
 
   -- A tagset consisting of a single tag could be just that, or a named tagset.
   -- No way to decide that by the shape of the identifier, hence trying both ways.
   Named tag   -> do let tagName = showTag tag
                     tags <- getSet tagsets tagName
-                    return $ fromMaybe (R.Set (R.Or [transTag tag])) tags
+                    return $ fromMaybe (C.Set (C.Or [transTag tag])) tags
 
 --------------------------------------------------------------------------------
 -- Contextual tests
@@ -229,8 +229,8 @@ transCond cond = case cond of
   CondTemplate name   -> fromJust `fmap` getSet templates (showId name)
 
   where 
-    link = R.Link . R.And
-    templ = R.Template . R.Or
+    link = R.Link . C.And
+    templ = R.Template . C.Or
 
     not_ :: R.Context -> R.Context
     not_ ctx = ctx { R.polarity = R.Not }

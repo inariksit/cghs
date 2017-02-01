@@ -1,11 +1,13 @@
-{-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving, DeriveTraversable #-}
+{-# LANGUAGE FlexibleInstances #-}
 
-module Rule where
+module CGHS.Rule where 
 
---import Utils
+import CGHS.Containers
+
 import Data.List ( intercalate )
 import Text.Printf ( printf )
-import Text.Regex.PCRE
+import Text.Regex.PCRE 
+  --TODO support regexes
 
 
 --------------------------------------------------------------------------------
@@ -51,16 +53,13 @@ type Reading = AndList Tag
 
 type TagSet = Set OrList Reading
 
--- Specific structure for VISL CG-3 tag sets and lists.
--- It's polymorphic just so that I can use fmap and stuff.
-data Set t a = Set (t a)                  -- LIST Foo = foo ("<bar>" bar) baz
-            | Union (Set t a) (Set t a)       -- SET Baz = Foo | Bar
-            | Diff (Set t a) (Set t a)        -- SET Baz = Foo - Bar
-            | Cart (Set t a) (Set t a)        -- SET Baz = Foo + Bar
---            | SymDif (Set a) (Set a)        -- SET Baz = Foo ∆ Bar
-            | Inters (Set t a) (Set t a)      -- SET Baz = Foo ∩ Bar
-            | All deriving (Eq,Ord)           -- (*)
 
+instance {-# OVERLAPPABLE #-} Show (OrList (AndList Tag)) where
+  show (Or tags) = addParens $ intercalate ")|(" (map show tags)
+
+
+instance {-# OVERLAPPABLE #-} Show (OrList Context) where
+  show = intercalate " OR " . map show . getOrList
 
 tagList :: Tag -> TagSet
 tagList tag = Set (Or [And [tag]])
@@ -143,7 +142,7 @@ instance Show Context where
 singleCtx (Ctx pos pol ts) = printf "%s%s %s" (show pol) (show pos) (show ts)
 singleCtx x                = show x
 
-
+addParens x = "(" ++ x ++ ")"
 
 --------------------------------------------------------------------------------
 -- Positions
@@ -184,52 +183,3 @@ data Polarity = Yes | Not deriving (Eq,Ord)
 instance Show Polarity where
   show Yes = []
   show Not = "NOT "
-
-
-
---------------------------------------------------------------------------------
--- General-purpose helper data types
-
--- Newtypes for lists. 
--- More verbose, but hopefully less prone to errors, and less ad hoc show functions.
-
--- In the rules and tagsets, we need both conjunctions and disjunctions, such as
--- Conjunctions: 
--- ● Tags enclosed in parentheses: ("warm" adj), (vblex sg p3)
--- ● Linked contextual tests: (-1 Adj LINK 1 Noun)
--- ● List of contextual tests in a rule: REMOVE Adj IF (NOT -1 Det) (NOT 1 Noun)
-
--- Disjunctions:
--- ● Tags not in parentheses: vblex vbser vbaux
--- ● Tag sets in union: Noun | (PropNoun - Toponym)
--- ● Contexts inside a template: ((-1C Det) OR (NOT 1 Noun))
-newtype OrList a = Or { getOrList :: [a] } deriving (Eq,Ord,Functor,Foldable,Monoid,Applicative,Traversable)
-newtype AndList a = And { getAndList :: [a] } deriving (Eq,Ord,Functor,Foldable,Monoid,Applicative,Traversable)
-
-instance (Show a) => Show (AndList a) where
-  show = unwords . map show . getAndList
-
-instance {-# OVERLAPPABLE #-} (Show a) => Show (OrList a) where
-  show = intercalate " OR " . map show . getOrList
-
-instance {-# OVERLAPPABLE #-} Show (OrList (AndList Tag)) where
-  show (Or tags) = addParens $ intercalate ")|(" (map show tags)
-
-addParens x = "(" ++ x ++ ")"
-
---------------------------------------------------------------------------------
-
-instance (Functor t) => Functor (Set t) where
-  fmap f (Set ts)       = Set (fmap f ts)
-  fmap f (Union ts ts') = Union (fmap f ts) (fmap f ts')
-  fmap f (Diff ts ts')  = Diff (fmap f ts) (fmap f ts')
-  fmap f (Cart ts ts')  = Cart (fmap f ts) (fmap f ts')
-  fmap f All            = All
-
-instance (Show (t a)) => Show (Set t a) where
-  show (Set ts) = show ts
-  show (Union ts ts') = show ts ++ " | " ++ show ts'
-  show (Inters ts ts') = show ts ++ " ∩ " ++ show ts'
-  show (Diff ts ts') = show ts ++ " - " ++ show ts'
-  show (Cart ts ts') = show ts ++ " + " ++ show ts'
-  show All = "(*)"
