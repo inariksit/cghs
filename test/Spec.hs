@@ -2,9 +2,8 @@
 
 module Main where
 
-import Rule
-import Parse
-import Utils
+import CGHS
+import CGHS.Rule ( Oper(..), Name(..), Careful(..), Scan(..), Polarity(..) )
 import Control.Monad ( liftM3, liftM4 )
 
 import Test.HUnit
