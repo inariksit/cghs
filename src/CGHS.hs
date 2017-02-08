@@ -10,6 +10,7 @@ module CGHS (
   , readTag
   , normaliseTagsetRel 
   , isLex
+  , includes
 
   -- ** Reading
   , Reading

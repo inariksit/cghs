@@ -56,9 +56,12 @@ intersRds rds rds' = Or $ catMaybes [ rd `moreSpecified` rd'
  where -- rd is more specified than rd', if all tags in rd' are in rd
        -- e.g. rd = (ada "very"), rd' = (ada)
   moreSpecified :: (Eq a, Foldable t) => t a -> t a -> Maybe (t a)
-  moreSpecified rd rd' | all (`elem` rd) rd' = Just rd
-                       | all (`elem` rd') rd = Just rd'
+  moreSpecified rd rd' | includes rd rd' = Just rd
+                       | includes rd' rd = Just rd'
                        | otherwise = Nothing
+
+includes :: (Eq a, Foldable t) => t a -> t a -> Bool
+includes t1 t2 = all (`elem` t1) t2
 
 removeLexReading :: Reading -> (Reading, [Tag])
 removeLexReading (And rd) = (And nolx, lx)
