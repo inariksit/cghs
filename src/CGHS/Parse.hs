@@ -190,7 +190,7 @@ transTagSet :: TagSet -> State Env R.TagSet
 transTagSet tagset = case tagset of
   All -> return C.All
   Diff ts ts' -> liftM2 C.Diff (transTagSet ts) (transTagSet ts')
-  Cart ts ts' -> liftM2 C.Diff (transTagSet ts) (transTagSet ts')
+  Cart ts ts' -> liftM2 C.Cart (transTagSet ts) (transTagSet ts')
   Union ts _ ts' -> liftM2 C.Union (transTagSet ts) (transTagSet ts')
 
   -- A tagset consisting of a single tag could be just that, or a named tagset.
