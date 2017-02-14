@@ -188,7 +188,7 @@ token ComplexId
 token Signed ('-'? (digit)+) ;
 
 -- String would cover this too, but I'll just do the more careful matching here.
-token WordForm ({"\"<"} ((char - ["\">"]))* {">\""}) ;
-
+--token WordForm ({"\"<"} ((char - ["\">"]))* {">\""}) ;
+token WordForm ({"\"<"} ((char - [" \n"]))* {">\""}) ;
 
 --token Punct ('/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!'|'←'|'→') ;
