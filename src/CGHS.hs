@@ -4,6 +4,8 @@ module CGHS (
     Rule(..)
   , parse 
 
+  , groupRules
+  , sortByContext
 
   -- ** Tagset
   , Tag(..), TagSet

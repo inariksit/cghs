@@ -8,8 +8,51 @@ import CGHS.Rule
 import Control.Monad ( liftM2 )
 
 import Data.Foldable ( fold )
-import Data.List ( intercalate, intersect, (\\), partition )
+import Data.List ( intercalate, intersect, (\\), partition, sortBy )
+import Data.Map ( fromListWith, elems )
 import Data.Maybe ( catMaybes )
+import Data.Monoid ( mappend )
+
+--------------------------------------------------------------------------------
+-- Operations on rules
+
+newtype RuleTargetEQ = TrgEq { trgEq :: Rule } deriving ( Show )
+
+instance Eq RuleTargetEQ where
+  (TrgEq rl) == (TrgEq rl') = roughlySameTarget (target rl) (target rl')
+
+instance Ord RuleTargetEQ where
+  compare rl rl' | rl == rl' = EQ
+                 | otherwise = (target $ trgEq rl) `compare` (target $ trgEq rl')
+
+-- Group sets of rules based on their targets.
+-- Target equality defined by roughlySameTarget: disregard lexical tags, 
+-- if one is a subset of other, then they're the same.
+groupRules :: [Rule] -> [[Rule]]
+groupRules rls = elems $ fromListWith (++) 
+                    [ (rl, [trgEq rl]) | rl <- map TrgEq rls ]
+
+-- Sort rules by the length of context. 
+sortByContext :: [Rule] -> [Rule]
+sortByContext = sortBy compareByContext
+
+compareByContext :: Rule -> Rule -> Ordering
+compareByContext r r' = (lc r `compare` lc r') `mappend`
+                        (lsc r `compare` lsc r')
+
+ where
+  lc = length . context
+  lsc = length . show . context
+
+roughlySameTarget :: TagSet -> TagSet -> Bool
+roughlySameTarget ts ts' = case (normaliseTagsetRel ts,normaliseTagsetRel ts') of
+  (Set x, Set y) 
+    -> let noLex  = fmap (fst . removeLexReading) x :: OrList Reading
+           noLex' = fmap (fst . removeLexReading) y :: OrList Reading
+       in includes noLex noLex' || includes noLex' noLex
+
+  _ -> False
+
 
 
 --------------------------------------------------------------------------------
