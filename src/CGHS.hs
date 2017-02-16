@@ -6,14 +6,11 @@ module CGHS (
 
   , groupRules
   , sortByContext
-  , compactRule
-  , findRepetition
 
   -- ** Tagset
   , Tag(..), TagSet
   , readTag
   , normaliseTagsetRel 
-  , compactTagset
   , isLex
   , includes
 
