@@ -8,7 +8,7 @@ import CGHS.Rule
 import Control.Monad ( liftM2 )
 
 import Data.Foldable ( fold )
-import Data.List ( findIndices, intercalate, intersect, (\\), nub, partition, sortBy )
+import Data.List ( partition, sortBy ) 
 import Data.Map ( fromListWith, elems )
 import Data.Maybe ( catMaybes )
 import Data.Monoid ( mappend )
@@ -59,94 +59,10 @@ roughlySameTarget ts ts' = case (normaliseTagsetRel ts,normaliseTagsetRel ts') o
   _ -> False
 
 
-----------------------
--- Slimming down rules
 
-compactRule :: Rule -> Rule
-compactRule rl = rl { target  = compactTagset (target rl)
-                    , context = fmap compactContext (context rl) }
-
-
-compactContext :: Context -> Context
-compactContext ctx = case ctx of
-  Ctx _ _ ts  -> ctx { tags = compactTagset ts }
-  Link cs     -> Link (fmap compactContext cs)
-  Template cs -> Template (fmap compactContext cs)
-  Negate c    -> Negate (compactContext c)
-  Always      -> Always
 
 --------------------------------------------------------------------------------
 -- Tag sets
-
--- Sometimes grammarians write tagsets in a repetitive way: (a c) OR (a d) OR (b c) OR (b d)
--- This function does some easy checks, and tries to make such lists nicer.
-compactTagset :: TagSet -> TagSet
-compactTagset ts = case ts of
-  Set rds    -> let (nonLexRds,lexTags) = unzip $ getOrList $ fmap removeLexReading rds :: ([Reading], [[Tag]])
-                 in if allSame nonLexRds && 
-                        all (atLeast 1 . getAndList) nonLexRds &&
-                         atLeast 2 lexTags
-                       then let lexSet = Set (Or (map And lexTags))
-                                morSet = Set (Or (nub nonLexRds))
-                             in Cart lexSet morSet
-                       else ts
-  Union _ _ -> let norm = normaliseTagsetRel ts
-                   compNorm = compactTagset norm 
-                in if norm == compNorm then ts else compNorm
-
-  _         -> ts -- Tagset is already using some fanciness
-
-allSame :: Eq a => [a] -> Bool
-allSame (x:y:xs) = x==y && allSame (y:xs)
-allSame _        = True
-
-atLeast :: Int -> [a] -> Bool
-atLeast 0 _      = True
-atLeast _ []     = False
-atLeast k (x:xs) = atLeast (k-1) xs
-
-
-findRepetition :: TagSet -> [(Reading,Int)] -- The elements that repeat
-findRepetition (Set ts) = lexOccs ++ rdOccs
- where 
-  (nonLexRds,lexTags) = unzip $ getOrList $ fmap removeLexReading ts :: ([Reading], [[Tag]])
-  lexOccs = nub [ (And lexTag, occurrences lexTag lexTags)
-                  | lexTag <- lexTags 
-                  , not (null lexTag)]
-  rdOccs = sortBy greedy $
-            nub [ (rd, occurrences rd nonLexRds)
-                  | rd <- nonLexRds 
-                  , not (null rd)]
-
-  --greedy rd rd' = let oc  = occurrences rd nonLexRds
-  --                    oc' = occurrences rd' nonLexRds
-  greedy (rd,oc) (rd',oc') = let rdlen  = length (getAndList rd)
-                                 rdlen' =  length (getAndList rd')
-                             in (oc `compare` oc') `mappend` 
-                                (rdlen `compare` rdlen')
-
-  occurrences x xs = length $ findIndices (`includes` x) xs
-
-findRepetition ts@(Union _ _) = findRepetition (normaliseTagsetRel ts)
-findRepetition _ = []
---[ 
---  | (nonLexRds,lexTags) <- map removeLexReading (getOrList rds) 
---  , atLeast 3 (filter )]
-
--- ("aitzi" ADB)
---  ("aitzin" IZE ARR BIZ- ABL) 
---  ("aitzin"  IZE ARR BIZ- GEL)
---  ("aitzin"  IZE ARR BIZ- INE)  
---  ("aitzin"  IZE ARR ALA)
---("aldamen" IZE ARR BIZ- ABL) 
---("aldamen" IZE ARR BIZ- GEL)
---("aldamen"  IZE ARR BIZ- INE)  
-
---   ("aitzi" ADB) 
---OR ( (("aitzin") OR ("aldamen"))
---   + (IZE ARR BIZ-) 
---   + ((ABL) OR (GEL) OR (INE))
---   )
 
 -- Tagset operations may manipulate the underlying (OrList Reading)s:
 -- ● remove elements
