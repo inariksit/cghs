@@ -79,7 +79,7 @@ instance Show Tag where
                         -- TODO if it turns out to be important, handle it nicer.
   show (Lem str) = printf "\"%s\"" str
   show (WF str)  = printf "\"<%s>\"" str
-  show (Rgx str) =  printf "\"%s\"r" str
+  show (Rgx str) = str -- printf "\"%s\"r" str
   show (Subreading n tag)
                  = printf "%s+%s" (show n) (show tag)
   show BOS       = ">>>"

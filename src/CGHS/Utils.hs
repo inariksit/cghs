@@ -28,7 +28,7 @@ instance Eq RuleTargetEQ where
 
 instance Ord RuleTargetEQ where
   compare rl rl' | rl == rl' = EQ
-                 | otherwise = (target $ trgEq rl) `compare` (target $ trgEq rl')
+                 | otherwise = target (trgEq rl) `compare` target (trgEq rl')
 
 -- Group sets of rules based on their targets.
 -- Target equality defined by roughlySameTarget: disregard lexical tags, 
@@ -118,6 +118,7 @@ isLex :: Tag -> Bool
 isLex (Lem _) = True
 isLex (WF _)  = True
 isLex _       = False
+
 --------------------------------------------------------------------------------
 -- Contextual tests
 
