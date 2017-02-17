@@ -56,3 +56,11 @@ instance (Show (t a)) => Show (Set t a) where
   show (Diff ts ts') = show ts ++ " - " ++ show ts'
   show (Cart ts ts') = show ts ++ " + " ++ show ts'
   show All = "(*)"
+
+transformSet :: (Eq a) => (t a -> t a) -> Set t a -> Set t a
+transformSet f (Set x)      = Set (f x)
+transformSet f (Union x y)  = Union (transformSet f x) (transformSet f y)
+transformSet f (Inters x y) = Inters (transformSet f x) (transformSet f y)
+transformSet f (Diff x y)   = Diff (transformSet f x) (transformSet f y)
+transformSet f (Cart x y)   = Cart (transformSet f x) (transformSet f y)
+transformSet f All          = All

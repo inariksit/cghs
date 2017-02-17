@@ -1,7 +1,7 @@
 module Main where
 
 import CGHS ( Rule(..), TagSet, parse, groupRules, sortByContext )
-import CGHS.Clean ( findRepetition, compactTagset, compactRule ) 
+import CGHS.Clean ( findRepetition, compactTagset, compactRule, compactStrings ) 
 import System.Environment ( getArgs )
 
 
@@ -15,9 +15,11 @@ main = do args <- getArgs
                         putStrLn ""
                         let compactDefs = [ compactTagset def
                                             | (name,def) <- defs ]
+
                         let diffDefs = [ (nm,odef,comp) 
                                         | ((nm,odef),comp) <- zip defs compactDefs
                                         , odef /= comp ]
+
                         mapM_ (\(nm,def,c) -> do putStrLn "\nOriginal definition:"
                                                  putStrLn (nm ++ " = " ++ show def)
                                                  putStrLn "Compacted some tagsets:"
@@ -29,15 +31,15 @@ main = do args <- getArgs
                                           , occs > 2 ]
                                         | (nm,def) <- defs ]
                         --mapM_ (mapM_ print) rules
-                        mapM_ (\((nm,def),occs) -> case occs of
-                                 [] -> return ()
-                                 _  ->  do putStrLn "\nOriginal definition:"
-                                           putStrLn (nm ++ " = " ++ show def)
-                                           putStrLn "\nRepetitive elements:"
-                                           mapM_ (\(x,y) -> 
-                                                  putStrLn (show x ++ ": " ++ show y)) occs
-                                           putStrLn "-----\n"
-                              ) repDefs
+                        --mapM_ (\((nm,def),occs) -> case occs of
+                        --         [] -> return ()
+                        --         _  ->  do putStrLn "\nOriginal definition:"
+                        --                   putStrLn (nm ++ " = " ++ show def)
+                        --                   putStrLn "\nRepetitive elements:"
+                        --                   mapM_ (\(x,y) -> 
+                        --                          putStrLn (show x ++ ": " ++ show y)) occs
+                        --                   putStrLn "-----\n"
+                        --      ) repDefs
 
                         putStrLn "\n\n\n"
                         let compRules = map compactRule (concat rules)
