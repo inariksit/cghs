@@ -159,30 +159,29 @@ type TagList = C.AndList R.Tag
 
 showTag :: Tag -> String
 showTag t = case t of
-  BOS -> bosString
-  EOS -> eosString
-  And tags -> "(" ++ unwords (map show tags) ++ ")"
-  Tag id_ -> showId id_
-  Lemma l -> l
-  WordF w -> showWF w
-  --TODO: case-insensitive lemma/wordform + regex
-  LemmaCI foo   -> showTag (Lemma foo)
-  WordFCI foo   -> showTag (WordF foo)
-  Regex foo     -> foo
+  BOS       -> bosString
+  EOS       -> eosString
+  And tags  -> "(" ++ unwords (map show tags) ++ ")"
+  Tag id_   -> showId id_
+  Lemma l   -> l
+  WordF w   -> showWF w
+  LemmaCI l -> "\"" ++ l ++ "\"i"
+  WordFCI w -> show w ++ "i"
+
+  Regex r   -> "\"" ++ r ++ "\"r"
 
 transTag :: Tag -> TagList
 transTag tag = case tag of
   BOS -> C.And [R.BOS]
   EOS -> C.And [R.EOS]
-  And tags -> C.And $ concatMap (C.getAndList.transTag) tags
+  And tags -> C.And $ concatMap (C.getAndList . transTag) tags
   s@(Tag (SetSynt _)) -> C.And [R.Synt (showTag s)] --TODO if this turns out important, handle it better
   t@(Tag name) -> C.And [R.Tag (showTag t)]
   l@(Lemma nm) -> C.And [R.Lem (showTag l)]
   w@(WordF nm) -> C.And [R.WF (showTag w)]
-  --TODO: case-insensitive lemma + regex
-  LemmaCI foo   -> transTag (Lemma foo) 
-  WordFCI foo   -> transTag (WordF foo)
-  Regex foo     -> C.And [R.Rgx (show foo)] 
+  l@(LemmaCI _) -> C.And [R.Rgx (showTag l)]
+  w@(WordFCI _) -> C.And [R.Rgx (showTag w)]
+  r@(Regex   _) -> C.And [R.Rgx (showTag r)] 
 
 
 
