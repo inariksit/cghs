@@ -1,4 +1,7 @@
-module CGHS.Parse ( parse ) where
+module CGHS.Parse ( 
+    parse
+  , printGrammar
+  ) where
 
 import qualified CGHS.Containers as C
 import qualified CGHS.Rule as R
@@ -21,19 +24,30 @@ parse :: Bool -> String -> Result
 parse compact s = case pGrammar (CG.Par.myLexer s) of
   Bad err  -> error err
   Ok  tree -> let (rls,env) = runState (parseRules compact tree) emptyEnv
-              in  ( tagsets env 
-                 , rls )
+               in ( tagsets env 
+                  , map rights rls )
+
+printGrammar :: Bool -> String -> String
+printGrammar compact s = case pGrammar (CG.Par.myLexer s) of
+  Bad err  -> error err
+  Ok  tree -> let defs = evalState (parseRules compact tree) emptyEnv
+              in concatMap (unlines.map show') defs
+
+ where
+  show' :: Either String R.Rule -> String
+  show' (Left  s) = s
+  show' (Right r) = show r
 
 --------------------------------------------------------------------------------
 
-parseRules :: Bool -> Grammar -> State Env [[R.Rule]]
+parseRules :: Bool -> Grammar -> State Env [[Either String R.Rule]]
 parseRules compact (Sections secs) = parseSection compact `mapM` secs
 
-parseSection :: Bool -> Section -> State Env [R.Rule]
+parseSection :: Bool -> Section -> State Env [Either String R.Rule]
 parseSection compact (Defs defs) =
  do putSet (bosString, R.bosSet) --in case the grammar doesn't specify boundaries 
     putSet (eosString, R.eosSet)
-    rights `fmap` mapM (addDecl compact) defs
+    addDecl compact `mapM` defs
 
 --------------------------------------------------------------------------------
 
@@ -63,16 +77,26 @@ addDecl :: Bool -> Def -> State Env (Either String R.Rule)
 addDecl compact def = case def of
    TemplDef t -> do transTemplDecl t >>= putTempl
                     return (Left $ CG.Print.printTree t)
-   SetDef s   -> do (origSetName,origSet) <- transSetDecl s 
+   SetDef s   -> do (setOrList, origSetName,origSet) <- transSetDecl s 
                     if compact 
-                      then do let compactSet = compactTagset origSet
+                      then do let compactSet = compactStrings origSet --compactTagset
                               putSet (origSetName, compactSet)
-                              return (Left $ origSetName ++ " = " ++ show compactSet)
+                              return (Left $ setOrList ++ " " ++ origSetName ++ 
+                                           " = " ++ C.showInline compactSet ++ " ;")
                       else do putSet (origSetName, origSet)
                               return (Left $ CG.Print.printTree s)
    RuleDef r  -> do rl <- transRule r
-                    putRule rl
-                    return (Right rl)
+                    if compact 
+                      then do 
+                        let newRl = compactRule rl
+                        rls <- gets rules
+                        if newRl `elem` rls
+                          then return (Left $ "# Repeated rule: " ++ show newRl)
+                          else do putRule newRl
+                                  return (Right newRl)
+                      else do
+                        putRule rl
+                        return (Right rl)
 
 
 --------------------------------------------------------------------------------
@@ -140,16 +164,16 @@ showWF (WordForm s) = (drop 2 . reverse . drop 2 . reverse) s
 bosString = ">>>"
 eosString = "<<<"
 
-transSetDecl :: SetDecl -> State Env (String, R.TagSet)
+transSetDecl :: SetDecl -> State Env (String, String, R.TagSet)
 transSetDecl setdecl =
   case setdecl of 
-    Set nm tagset -> (,) (showId nm) `fmap` transTagSet tagset
+    Set nm tagset -> (,,) "SET" (showId nm) `fmap` transTagSet tagset
     List nm tags  -> do let tagLists = map transTag tags :: [TagList]
                         let setName = showId nm
-                        return (setName, C.Set (C.SetName setName) (C.Or tagLists))
+                        return ("LIST", setName, C.Set (C.SetName setName) (C.Or tagLists))
 
-    BList -> return (bosString, R.bosSet)
-    EList -> return (eosString, R.eosSet)
+    BList -> return ("LIST", bosString, R.bosSet)
+    EList -> return ("LIST", eosString, R.eosSet)
 
 
 -- Templates: single or a list with ORs

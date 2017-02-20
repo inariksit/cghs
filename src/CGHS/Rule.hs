@@ -4,7 +4,7 @@ module CGHS.Rule where
 
 import CGHS.Containers
 
-import Data.List ( intercalate )
+import Data.List ( delete, intercalate )
 import Text.Printf ( printf )
 import Text.Regex.PCRE 
   --TODO support regexes
@@ -54,7 +54,7 @@ type Reading = AndList Tag
 type TagSet = Set OrList Reading
 
 instance {-# OVERLAPPABLE #-} Show (OrList (AndList Tag)) where
-  show (Or tags) = addParens $ intercalate ")|(" (map show tags)
+  show (Or tags) = addParens $ intercalate ") (" (map show tags)
 
 
 instance {-# OVERLAPPABLE #-} Show (OrList Context) where
@@ -77,8 +77,8 @@ instance Show Tag where
   show (Synt str) = str -- I already include the @ in the name.
                         -- TODO if it turns out to be important, handle it nicer.
   show (Lem str) = printf "\"%s\"" str
-  show (WF str)  = printf "\"<%s>\"" str
-  show (Rgx str) = str -- printf "\"%s\"r" str
+  show (WF str)  = printf "\"<%s>\"" (delete '\\' str) --for the Basque imbalanced quotes
+  show (Rgx str) = str
   show (Subreading n tag)
                  = printf "%s+%s" (show n) (show tag)
   show BOS       = ">>>"
@@ -133,12 +133,16 @@ data Context = Ctx { position :: Position
 
 instance Show Context where
   show (Template cs) = show cs
-  show (Negate ctx)  = "NEGATE " ++ show ctx
+  show (Negate ctx)  = addParens $ "NEGATE " ++ show ctx
   show (Link cs)     = addParens $ intercalate " LINK " $ map singleCtx (getAndList cs)
   show Always        = []
   show ctx           = addParens (singleCtx ctx)
 
-singleCtx (Ctx pos pol ts) = printf "%s%s %s" (show pol) (show pos) (show ts)
+singleCtx (Ctx pos pol ts) = case scan pos of
+  Barrier  bts -> printf "%s%s %s BARRIER %s" (show pol) (show pos) (show ts) (show bts)
+  CBarrier bts -> printf "%s%s %s CBARRIER %s" (show pol) (show pos) (show ts) (show bts)
+  Exactly      -> printf "%s%s %s" (show pol) (show pos) (show ts)
+  AtLeast      -> printf "%s%s %s" (show pol) (show pos) (show ts)
 singleCtx x                = show x
 
 addParens x = "(" ++ x ++ ")"
@@ -152,8 +156,7 @@ data Position = Pos { scan :: Scan
                     } deriving (Eq,Ord)
 
 instance Show Position where
-  show (Pos sc c p) = let (sc1,sc2) = showScan sc 
-                      in printf "%s%s%s%s" sc1 (show p) (show c) sc2
+  show (Pos sc c p) = printf "%s%s%s" (show sc) (show p) (show c)
 
 data Scan = Exactly 
           | AtLeast 
@@ -161,13 +164,8 @@ data Scan = Exactly
           | CBarrier { cbtags :: TagSet } deriving (Eq,Ord)
 
 instance Show Scan where
-  show sc = uncurry (++) (showScan sc)
-
-showScan :: Scan -> (String,String)
-showScan Exactly = ([],[])
-showScan AtLeast = ("*",[])
-showScan (Barrier ts) = ("*", " BARRIER " ++ show ts)
-showScan (CBarrier ts) = ("*", " CBARRIER " ++ show ts)
+  show Exactly = []
+  show _       = "*"
 
 
 

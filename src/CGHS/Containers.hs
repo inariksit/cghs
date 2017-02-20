@@ -53,7 +53,7 @@ instance (Functor t) => Functor (Set t) where
   fmap f All            = All
 
 instance (Show (t a)) => Show (Set t a) where
-  show (Set  Inline    ts) = "(" ++ show ts ++ ")"
+  show (Set  Inline    ts) = show ts
   show (Set (SetName s) _) = s
   show (Union ts ts') = show ts ++ " | " ++ show ts'
   show (Inters ts ts') = show ts ++ " ∩ " ++ show ts'
@@ -64,10 +64,10 @@ instance (Show (t a)) => Show (Set t a) where
 showInline :: (Show (t a)) => Set t a -> String
 showInline ts = case ts of
   Set _ tags -> show (Set Inline tags)
-  Union t t' -> showInline t ++ " | " ++ showInline t'
+  Union t t' -> "(" ++ showInline t ++ ") | (" ++ showInline t' ++ ")"
   Inters t t' -> showInline t ++ " ∩ " ++ showInline t'
-  Diff t t' -> showInline t ++ " - " ++ showInline t'
-  Cart t t' -> showInline t ++ " + " ++ showInline t'
+  Diff t t' -> "(" ++ showInline t ++ ") - (" ++ showInline t' ++ ")"
+  Cart t t' -> "(" ++ showInline t ++ ") + (" ++ showInline t' ++ ")"
   All -> "(*)"
 
 transformSet :: (Eq a) => (t a -> t a) -> Set t a -> Set t a

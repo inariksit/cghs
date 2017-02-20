@@ -57,34 +57,34 @@ compactStrings = transformSet nubOr . fmap regexReading
 
   compLen x y = length (show x) `compare` length (show y)
 
-  eqReading :: Reading -> Reading -> Bool
-  eqReading (And tags) (And tags') = and $ zipWith eqButMai tags tags'
+  regexReading :: Reading -> Reading
+  regexReading rd =
+    let (nonLexRd,lexTags) = removeLexReading rd
+     in And (map mai lexTags) `mappend` nonLexRd 
+  
 
-  ordReading :: Reading -> Reading -> Ordering
-  ordReading x y | eqReading x y = EQ
-                 | otherwise     = compare (show x) (show y)
+  mai tag = case tag of
+    WF x  -> if not $ "PUNT" `isInfixOf` x --"_MAI" `isInfixOf` x
+               then let wfStart = takeWhile (/='>') x
+                    in Rgx ( "\"<" ++ map toLower wfStart ++ "(>\\\"<..._MAI)?>\"ir" )
+               else tag
+    _     -> tag
 
+eqReading :: Reading -> Reading -> Bool
+eqReading (And tags) (And tags') = and $ zipWith eqButMai tags tags'
+ where
   eqButMai :: Tag -> Tag -> Bool
   eqButMai (WF word) (Rgx wordMai) = 
     case stripPrefix ('"':'<':word) wordMai of
       Just "(>\\\"<..._MAI)?>\"ir" -> True
       Nothing -> False
+
   eqButMai x@(Rgx _) y@(WF _) = eqButMai y x
   eqButMai x y = x == y
 
-  regexReading :: Reading -> Reading
-  regexReading rd =
-    let (nonLexRd,lexTags) = removeLexReading rd
-     in And (map regex lexTags) `mappend` nonLexRd 
-  
-regex :: Tag -> Tag
-regex tag = case tag of
-  WF x  -> if "_MAI" `isInfixOf` x
-            then let wfStart = takeWhile (/='>') x
-                 in Rgx ( "\"<" ++ map toLower wfStart ++ "(>\\\"<..._MAI)?>\"ir" )
-            else tag
-  _     -> tag
-
+ordReading :: Reading -> Reading -> Ordering
+ordReading x y | eqReading x y = EQ
+               | otherwise     = compare (show x) (show y)
 
 -- | Special case: if a tagset is of the form ("a" c) OR ("a" d) OR ("b" c) OR ("b" d),
 -- we compact the tagset to ("a" OR "b") + (c OR d).

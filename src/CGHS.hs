@@ -3,7 +3,7 @@ module CGHS (
   -- * Rule
     Rule(..)
   , parse 
-
+  , printGrammar
   , groupRules
   , sortByContext
 
