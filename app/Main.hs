@@ -1,7 +1,7 @@
 module Main where
 
 import CGHS ( Rule(..), TagSet, parse, groupRules, sortByContext, showInline )
-import CGHS.Clean ( findRepetition, compactTagset, compactRule, compactStrings ) 
+import CGHS.Compact ( findRepetition, compactTagset, compactRule, compactStrings ) 
 import System.Environment ( getArgs )
 
 

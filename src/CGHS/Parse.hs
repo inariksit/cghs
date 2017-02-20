@@ -2,6 +2,7 @@ module CGHS.Parse ( parse ) where
 
 import qualified CGHS.Containers as C
 import qualified CGHS.Rule as R
+import CGHS.Compact
 import CG.Abs
 import CG.Lex
 import CG.Par
@@ -16,23 +17,23 @@ import Data.Maybe
 
 type Result = ([(String,R.TagSet)], [[R.Rule]]) -- sections
 
-parse :: String -> Result 
-parse s = case pGrammar (CG.Par.myLexer s) of
+parse :: Bool -> String -> Result 
+parse compact s = case pGrammar (CG.Par.myLexer s) of
   Bad err  -> error err
-  Ok  tree -> let (rls,env) = runState (parseRules tree) emptyEnv
+  Ok  tree -> let (rls,env) = runState (parseRules compact tree) emptyEnv
               in  ( tagsets env 
                  , rls )
 
 --------------------------------------------------------------------------------
 
-parseRules :: Grammar -> State Env [[R.Rule]]
-parseRules (Sections secs) = mapM parseSection secs
+parseRules :: Bool -> Grammar -> State Env [[R.Rule]]
+parseRules compact (Sections secs) = parseSection compact `mapM` secs
 
-parseSection :: Section -> State Env [R.Rule]
-parseSection (Defs defs) =
+parseSection :: Bool -> Section -> State Env [R.Rule]
+parseSection compact (Defs defs) =
  do putSet (bosString, R.bosSet) --in case the grammar doesn't specify boundaries 
     putSet (eosString, R.eosSet)
-    rights `fmap` mapM addDecl defs
+    rights `fmap` mapM (addDecl compact) defs
 
 --------------------------------------------------------------------------------
 
@@ -58,14 +59,20 @@ getSet f nm = lookup nm `fmap` gets f
 
 
 -- maybe someday I want to do something with the Strings; now I'm just ignoring them
-addDecl :: Def -> State Env (Either String R.Rule)
-addDecl (SetDef s)   = do transSetDecl s >>= putSet
-                          return (Left $ CG.Print.printTree s)
-addDecl (TemplDef t) = do transTemplDecl t >>= putTempl
-                          return (Left $ CG.Print.printTree t)
-addDecl (RuleDef r)  = do rl <- transRule r
-                          putRule rl
-                          return (Right rl)
+addDecl :: Bool -> Def -> State Env (Either String R.Rule)
+addDecl compact def = case def of
+   TemplDef t -> do transTemplDecl t >>= putTempl
+                    return (Left $ CG.Print.printTree t)
+   SetDef s   -> do (origSetName,origSet) <- transSetDecl s 
+                    if compact 
+                      then do let compactSet = compactTagset origSet
+                              putSet (origSetName, compactSet)
+                              return (Left $ origSetName ++ " = " ++ show compactSet)
+                      else do putSet (origSetName, origSet)
+                              return (Left $ CG.Print.printTree s)
+   RuleDef r  -> do rl <- transRule r
+                    putRule rl
+                    return (Right rl)
 
 
 --------------------------------------------------------------------------------

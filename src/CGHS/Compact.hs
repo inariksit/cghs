@@ -1,4 +1,4 @@
-module CGHS.Clean (
+module CGHS.Compact (
     compactRule
   , compactTagset
   , compactStrings
@@ -6,7 +6,6 @@ module CGHS.Clean (
   ) where
 
 import CGHS.Containers
-import CGHS.Parse
 import CGHS.Rule
 import CGHS.Utils
 
