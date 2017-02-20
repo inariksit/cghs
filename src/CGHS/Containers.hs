@@ -53,7 +53,7 @@ instance (Functor t) => Functor (Set t) where
   fmap f All            = All
 
 instance (Show (t a)) => Show (Set t a) where
-  show (Set  Inline    ts) = show ts
+  show (Set  Inline    ts) = "(" ++ show ts ++ ")"
   show (Set (SetName s) _) = s
   show (Union ts ts') = show ts ++ " | " ++ show ts'
   show (Inters ts ts') = show ts ++ " ∩ " ++ show ts'

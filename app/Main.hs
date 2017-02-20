@@ -10,7 +10,8 @@ main = do args <- getArgs
           case args of
             [rls] -> do --E.setLocaleEncoding E.utf8 --maybe I'll need it later?
                         text <- readFile rls 
-                        let (defs,rules) = parse text
+                        let compact = False
+                        let (defs,rules) = parse compact text
                         --mapM_ print defs
                         putStrLn ""
                         let compactDefs = [ compactTagset def
@@ -45,8 +46,9 @@ main = do args <- getArgs
                         let compRules = map compactRule (concat rules)
                         let diffRules = [ show orig ++ "\n\t" ++  show comp ++ "\n"
                                            | (orig,comp) <- zip (concat rules) compRules
-                                           , orig /= comp ]
-                        --mapM_ putStrLn diffRules
+                                           , orig /= comp ]                        
+                        mapM_ putStrLn diffRules
+                        print (length diffRules)
 
                         --putStrLn "Grouping rules by targets"
                         --let groupedRlsBySection = map groupRules rules 
