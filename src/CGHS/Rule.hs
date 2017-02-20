@@ -53,7 +53,6 @@ type Reading = AndList Tag
 
 type TagSet = Set OrList Reading
 
-
 instance {-# OVERLAPPABLE #-} Show (OrList (AndList Tag)) where
   show (Or tags) = addParens $ intercalate ")|(" (map show tags)
 
@@ -62,7 +61,7 @@ instance {-# OVERLAPPABLE #-} Show (OrList Context) where
   show = intercalate " OR " . map show . getOrList
 
 tagList :: Tag -> TagSet
-tagList tag = Set (Or [And [tag]])
+tagList tag = Set (SetName $ show tag) (Or [And [tag]])
 
 bosSet :: TagSet
 bosSet = tagList BOS

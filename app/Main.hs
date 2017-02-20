@@ -1,6 +1,6 @@
 module Main where
 
-import CGHS ( Rule(..), TagSet, parse, groupRules, sortByContext )
+import CGHS ( Rule(..), TagSet, parse, groupRules, sortByContext, showInline )
 import CGHS.Clean ( findRepetition, compactTagset, compactRule, compactStrings ) 
 import System.Environment ( getArgs )
 
@@ -21,9 +21,9 @@ main = do args <- getArgs
                                         , odef /= comp ]
 
                         mapM_ (\(nm,def,c) -> do putStrLn "\nOriginal definition:"
-                                                 putStrLn (nm ++ " = " ++ show def)
+                                                 putStrLn (nm ++ " = " ++ showInline def)
                                                  putStrLn "Compacted some tagsets:"
-                                                 print c
+                                                 putStrLn (nm ++ " = " ++ showInline c)
                               ) diffDefs
 
                         let repDefs = [ (,) (nm,def) [ (rd,occs)

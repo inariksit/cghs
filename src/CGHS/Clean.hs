@@ -24,7 +24,7 @@ import Data.Monoid ( mappend )
 -- | Checks if some definition occurs many times in the same tagset,
 -- and outputs the results in order from most repetitive. 
 findRepetition :: TagSet -> [(Reading,Int)] -- The elements that repeat
-findRepetition (Set ts) = lexOccs ++ rdOccs
+findRepetition (Set _ ts) = lexOccs ++ rdOccs
  where 
   (nonLexRds,lexTags) = unzip $ getOrList $ fmap removeLexReading ts :: ([Reading], [[Tag]])
   lexOccs = nub [ (And lexTag, occurrences lexTag lexTags)
@@ -93,12 +93,12 @@ compactTagset :: TagSet -> TagSet
 compactTagset ts = 
   let reTs = compactStrings ts
   in case reTs of
-      Set rds    -> let (nonLexRds,lexTags) = unzip $ getOrList $ fmap removeLexReading rds :: ([Reading], [[Tag]])
+      Set nm rds -> let (nonLexRds,lexTags) = unzip $ getOrList $ fmap removeLexReading rds :: ([Reading], [[Tag]])
                     in if allSame nonLexRds && 
                            all (atLeast 2 . getAndList) nonLexRds &&
                            atLeast 2 lexTags
-                        then let lexSet = Set (Or (map And lexTags))
-                                 morSet = Set (Or (nub nonLexRds))
+                        then let lexSet = Set Inline (Or (map And lexTags))
+                                 morSet = Set Inline (Or (nub nonLexRds))
                               in Cart lexSet morSet
                         else reTs
       Union _ _ -> let norm = normaliseTagsetRel reTs

@@ -10,6 +10,7 @@ module CGHS (
   -- ** Tagset
   , Tag(..), TagSet
   , readTag
+  , showInline
   , normaliseTagsetRel 
   , isLex
   , includes

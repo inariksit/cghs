@@ -51,7 +51,7 @@ compareByContext r r' = (lc r `compare` lc r') `mappend`
 
 roughlySameTarget :: TagSet -> TagSet -> Bool
 roughlySameTarget ts ts' = case (normaliseTagsetRel ts,normaliseTagsetRel ts') of
-  (Set x, Set y) 
+  (Set _ x, Set _ y) 
     -> let noLex  = fmap (fst . removeLexReading) x :: OrList Reading
            noLex' = fmap (fst . removeLexReading) y :: OrList Reading
        in includes noLex noLex' || includes noLex' noLex
@@ -70,7 +70,7 @@ roughlySameTarget ts ts' = case (normaliseTagsetRel ts,normaliseTagsetRel ts') o
 -- ● specify the underspecified readings (= add new things inside them)
 -- Diffs will be treated in CGSAT, because we need absolute complement.
 normaliseTagsetRel :: TagSet -> TagSet 
-normaliseTagsetRel set = maybe set Set (go set)
+normaliseTagsetRel set = maybe set (Set Inline) (go set)
  where
   go :: TagSet -> Maybe (OrList Reading)
   go set = case set of
@@ -79,7 +79,7 @@ normaliseTagsetRel set = maybe set Set (go set)
     -- Diff must not be normalised here: eventually we want an
     -- absolute complement! Tagsets inside Diff can be normalised.
 
-    Set readings  -- No further normalisation
+    Set _ readings  -- No further normalisation
         -> Just readings
     Union ts ts' -- Add elements to ts
         -> liftM2 mappend (go ts) (go ts') 
@@ -185,7 +185,7 @@ parseReadingApe = And . map readTag . filter (not.null) . split (=='<')
 -- the relations, just want to know all different readings someone ever wrote.
 tagSet2Readings :: TagSet -> [Reading]
 tagSet2Readings ts = case normaliseTagsetRel ts of
-  Set rds    -> getOrList rds
+  Set _ rds    -> getOrList rds
   All        -> [] --TODO ??
   Diff rs ts -> tagSet2Readings rs ++ tagSet2Readings ts -- TODO
 

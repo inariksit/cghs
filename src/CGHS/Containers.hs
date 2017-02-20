@@ -34,7 +34,10 @@ instance (Show a) => Show (AndList a) where
 -- Specific structure for VISL CG-3 tag sets and lists.
 -- It's polymorphic just so that I can use fmap and stuff.
 
-data Set t a = Set (t a)                  -- LIST Foo = foo ("<bar>" bar) baz
+data SetName = SetName String | Inline
+  deriving (Show,Eq,Ord)
+
+data Set t a = Set SetName (t a)              -- LIST Foo = foo ("<bar>" bar) baz
             | Union (Set t a) (Set t a)       -- SET Baz = Foo | Bar
             | Diff (Set t a) (Set t a)        -- SET Baz = Foo - Bar
             | Cart (Set t a) (Set t a)        -- SET Baz = Foo + Bar
@@ -43,22 +46,32 @@ data Set t a = Set (t a)                  -- LIST Foo = foo ("<bar>" bar) baz
             | All deriving (Eq,Ord)           -- (*)
 
 instance (Functor t) => Functor (Set t) where
-  fmap f (Set ts)       = Set (fmap f ts)
+  fmap f (Set nm ts)    = Set nm (fmap f ts)
   fmap f (Union ts ts') = Union (fmap f ts) (fmap f ts')
   fmap f (Diff ts ts')  = Diff (fmap f ts) (fmap f ts')
   fmap f (Cart ts ts')  = Cart (fmap f ts) (fmap f ts')
   fmap f All            = All
 
 instance (Show (t a)) => Show (Set t a) where
-  show (Set ts) = show ts
+  show (Set  Inline    ts) = show ts
+  show (Set (SetName s) _) = s
   show (Union ts ts') = show ts ++ " | " ++ show ts'
   show (Inters ts ts') = show ts ++ " ∩ " ++ show ts'
   show (Diff ts ts') = show ts ++ " - " ++ show ts'
   show (Cart ts ts') = show ts ++ " + " ++ show ts'
   show All = "(*)"
 
+showInline :: (Show (t a)) => Set t a -> String
+showInline ts = case ts of
+  Set _ tags -> show (Set Inline tags)
+  Union t t' -> showInline t ++ " | " ++ showInline t'
+  Inters t t' -> showInline t ++ " ∩ " ++ showInline t'
+  Diff t t' -> showInline t ++ " - " ++ showInline t'
+  Cart t t' -> showInline t ++ " + " ++ showInline t'
+  All -> "(*)"
+
 transformSet :: (Eq a) => (t a -> t a) -> Set t a -> Set t a
-transformSet f (Set x)      = Set (f x)
+transformSet f (Set nm x)   = Set nm (f x)
 transformSet f (Union x y)  = Union (transformSet f x) (transformSet f y)
 transformSet f (Inters x y) = Inters (transformSet f x) (transformSet f y)
 transformSet f (Diff x y)   = Diff (transformSet f x) (transformSet f y)

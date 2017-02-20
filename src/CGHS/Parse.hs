@@ -108,8 +108,8 @@ transRule x = case x of
     newTrg rl ts = rl { R.target = ts }
 
     addTag :: R.Tag -> R.TagSet -> R.TagSet
-    addTag tag (C.Set ts) = C.Set (C.Or [C.And [tag]] `mappend` ts)
-    addTag tag _          = error "addTag: TODO I should implement other set operations for targets"
+    addTag tag (C.Set nm ts) = C.Set nm (C.Or [C.And [tag]] `mappend` ts)
+    addTag tag _             = error "addTag: TODO I should implement other set operations for targets"
 
 
     transName (MaybeName1 (ComplexId nm)) = R.Name nm
@@ -139,7 +139,7 @@ transSetDecl setdecl =
     Set nm tagset -> (,) (showId nm) `fmap` transTagSet tagset
     List nm tags  -> do let tagLists = map transTag tags :: [TagList]
                         let setName = showId nm
-                        return (setName, C.Set (C.Or tagLists))
+                        return (setName, C.Set (C.SetName setName) (C.Or tagLists))
 
     BList -> return (bosString, R.bosSet)
     EList -> return (eosString, R.eosSet)
@@ -196,7 +196,9 @@ transTagSet tagset = case tagset of
   -- No way to decide that by the shape of the identifier, hence trying both ways.
   Named tag   -> do let tagName = showTag tag
                     tags <- getSet tagsets tagName
-                    return $ fromMaybe (C.Set (C.Or [transTag tag])) tags
+                    return $ case tags of
+                      Just ts -> ts
+                      Nothing -> C.Set C.Inline (C.Or [transTag tag])
 
 --------------------------------------------------------------------------------
 -- Contextual tests
