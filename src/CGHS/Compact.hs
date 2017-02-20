@@ -97,7 +97,7 @@ compactTagset ts =
                            all (atLeast 2 . getAndList) nonLexRds &&
                            atLeast 2 lexTags
                         then let lexSet = Set Inline (Or (map And lexTags))
-                                 morSet = Set Inline (Or (nub nonLexRds))
+                                 morSet = Set nm (Or (nub nonLexRds))
                               in Cart lexSet morSet
                         else reTs
       Union _ _ -> let norm = normaliseTagsetRel reTs
@@ -119,13 +119,13 @@ atLeast k (x:xs) = atLeast (k-1) xs
 
 -- | Eliminating tagset repetition from rules
 compactRule :: Rule -> Rule
-compactRule rl = rl { target  = compactStrings (compactTagset (target rl))
+compactRule rl = rl { target  = compactStrings (target rl)
                     , context = fmap compactContext (context rl) }
 
 -- | Eliminating tagset repetition from contexts
 compactContext :: Context -> Context
 compactContext ctx = case ctx of
-  Ctx _ _ ts  -> ctx { tags = compactStrings (compactTagset ts) }
+  Ctx _ _ ts  -> ctx { tags = (compactStrings ts) }
   Link cs     -> Link (fmap compactContext cs)
   Template cs -> Template (fmap compactContext cs)
   Negate c    -> Negate (compactContext c)
