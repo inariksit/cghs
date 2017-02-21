@@ -106,20 +106,25 @@ compactTagset :: Bool -> TagSet -> TagSet
 compactTagset explicitMai ts = 
   let reTs = compactStrings explicitMai ts
   in case reTs of
-      Set nm rds -> let (nonLexRds,lexTags) = unzip $ getOrList $ fmap removeLexReading rds :: ([Reading], [[Tag]])
-                    in if (allSame lexTags || allSame nonLexRds)
-                           && bigEnough nonLexRds lexTags
-                        then let lexSet = Set Inline (Or (map And (nub lexTags)))
-                                 morSet = Set Inline (Or (nub nonLexRds))
-                              in Cart lexSet morSet
-                        else reTs
+      Set Inline rds
+        -> compactTagset explicitMai (Set (SetName "NoName") rds)
+      Set (SetName nm) rds
+        -> let (morphRds,lexTags) = unzip $ getOrList $ fmap removeLexReading rds
+            in if (allSame lexTags || allSame morphRds)
+                   && bigEnough morphRds lexTags
+                then let lexSet = Set (SetName (nm++"_LEX")) 
+                                      (Or [And lt | lt <- nub lexTags] )
+                         morSet = Set (SetName (nm++"_MORPH")) 
+                                      (Or (nub morphRds))
+                      in Cart lexSet morSet
+                 else reTs
       Union _ _ -> let norm = normaliseTagsetRel reTs
                        compNorm = compactTagset explicitMai norm 
                     in if norm == compNorm then reTs else compNorm
 
       _         -> reTs -- Tagset is already using some fanciness
  where
-  bigEnough rds tags = all (atLeast 1.getAndList) rds && atLeast 1 tags 
+  bigEnough rs ts = all (atLeast 1 . getAndList) rs && atLeast 1 ts 
 
 allSame :: Eq a => [a] -> Bool
 allSame (x:y:xs) = x==y && allSame (y:xs)
