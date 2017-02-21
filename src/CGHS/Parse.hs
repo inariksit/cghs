@@ -79,7 +79,7 @@ addDecl compact def = case def of
                     return (Left $ CG.Print.printTree t)
    SetDef s   -> do (setOrList, origSetName,origSet) <- transSetDecl s 
                     if compact 
-                      then do let compactSet = compactStrings origSet --compactTagset
+                      then do let compactSet = compactStrings False origSet
                               putSet (origSetName, compactSet)
                               return (Left $ setOrList ++ " " ++ origSetName ++ 
                                            " = " ++ C.showInline compactSet ++ " ;")
