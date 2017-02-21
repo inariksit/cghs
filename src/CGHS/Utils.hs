@@ -43,12 +43,13 @@ sortByContext = sortBy compareByContext
 
 compareByContext :: Rule -> Rule -> Ordering
 compareByContext r r' = (lc r `compare` lc r') `mappend`
-                        (lts r `compare` lts r')
+                        (lts r `compare` lts r')  `mappend`
+                        (lsc r `compare` lsc r')
 
  where
   lc = length . context
-  lts = length . fmap tagsets . context
-
+  lts = length . concatMap tagsets . context
+  lsc = length . show . context
 
 tagsets :: Context -> [TagSet]
 tagsets ctx = case ctx of
