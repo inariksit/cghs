@@ -106,15 +106,13 @@ compactTagset :: Bool -> TagSet -> TagSet
 compactTagset explicitMai ts = 
   let reTs = compactStrings explicitMai ts
   in case reTs of
-      Set Inline rds
-        -> compactTagset explicitMai (Set (SetName "NoName") rds)
-      Set (SetName nm) rds
+      Set nm rds
         -> let (morphRds,lexTags) = unzip $ getOrList $ fmap removeLexReading rds
             in if (allSame lexTags || allSame morphRds)
                    && bigEnough morphRds lexTags
-                then let lexSet = Set (SetName (nm++"_LEX")) 
+                then let lexSet = Set (SetName (show' nm ++ "_LEX"))
                                       (Or [And lt | lt <- nub lexTags] )
-                         morSet = Set (SetName (nm++"_MORPH")) 
+                         morSet = Set (SetName (show' nm ++ "_MORPH")) 
                                       (Or (nub morphRds))
                       in Cart lexSet morSet
                  else reTs
@@ -124,7 +122,9 @@ compactTagset explicitMai ts =
 
       _         -> reTs -- Tagset is already using some fanciness
  where
-  bigEnough rs ts = all (atLeast 1 . getAndList) rs && atLeast 1 ts 
+  bigEnough rs ts = all (atLeast 1 . getAndList) rs && atLeast 1 ts
+  show' Inline = "NoName"
+  show' (SetName x) = x
 
 allSame :: Eq a => [a] -> Bool
 allSame (x:y:xs) = x==y && allSame (y:xs)

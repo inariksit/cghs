@@ -43,11 +43,20 @@ sortByContext = sortBy compareByContext
 
 compareByContext :: Rule -> Rule -> Ordering
 compareByContext r r' = (lc r `compare` lc r') `mappend`
-                        (lsc r `compare` lsc r')
+                        (lts r `compare` lts r')
 
  where
   lc = length . context
-  lsc = length . show . context
+  lts = length . fmap tagsets . context
+
+
+tagsets :: Context -> [TagSet]
+tagsets ctx = case ctx of
+  Ctx _ _ _   -> [tags ctx]
+  Template cs -> getOrList $ fmap tags cs
+  Link cs     -> getAndList $ fmap tags cs
+  Negate c    -> tagsets c
+  Always      -> []
 
 roughlySameTarget :: TagSet -> TagSet -> Bool
 roughlySameTarget ts ts' = case (normaliseTagsetRel ts,normaliseTagsetRel ts') of
