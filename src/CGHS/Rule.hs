@@ -6,8 +6,6 @@ import CGHS.Containers
 
 import Data.List ( delete, intercalate )
 import Text.Printf ( printf )
-import Text.Regex.PCRE 
-  --TODO support regexes
 
 
 --------------------------------------------------------------------------------

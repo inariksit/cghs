@@ -16,7 +16,6 @@ import Control.Monad.State.Lazy
 import Data.Either
 import Data.List
 import Data.Maybe
---import Text.Regex.PCRE
 
 type Result = ([(String,R.TagSet)], [[R.Rule]]) -- sections
 
