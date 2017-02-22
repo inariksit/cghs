@@ -41,7 +41,6 @@ packages:
 # (e.g., acme-missiles-0.3)
 extra-deps: 
 - BNFC-2.8.1
-- regex-pcre-0.94.4
 - mtl-2.2.1
 
 # Override default flag values for local packages and extra-deps
