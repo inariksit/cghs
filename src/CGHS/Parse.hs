@@ -89,7 +89,7 @@ addDecl compact def = case def of
                       then do 
                         let newRl = compactRule rl
                         rls <- gets rules
-                        if newRl `elem` rls
+                        if any (sameButLine newRl) rls
                           then return (Left $ "# Repeated rule: " ++ show newRl)
                           else do putRule newRl
                                   return (Right newRl)
@@ -97,7 +97,8 @@ addDecl compact def = case def of
                         putRule rl
                         return (Right rl)
 
-
+ where
+   sameButLine (R.R t n trg c ln) (R.R t' n' trg' c' ln') = (t,n,trg,c) == (t',n',trg',c')
 --------------------------------------------------------------------------------
 -- Rule
 
