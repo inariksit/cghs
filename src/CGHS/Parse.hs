@@ -107,26 +107,26 @@ transRule x = case x of
     -> do trg <- transTagSet tags
           ctx <- mapM transCond cs
           let trgSubr = maybe trg (mapSubr trg) (transSubr sr)
-          let name = transName nm          
-          return (R.R R.REMOVE name trgSubr (C.And ctx))
+          let (name,lnNum) = transName nm          
+          return (R.R R.REMOVE name trgSubr (C.And ctx) lnNum)
   RemoveAlways nm sr tags
     -> always `fmap` transRule (RemoveIf nm sr tags MaybeIF_IF [])
   SelectIf nm sr tags x cs 
     -> select `fmap` transRule (RemoveIf nm sr tags x cs)
   SelectAlways nm sr tags  
     -> select `fmap` transRule (RemoveAlways nm sr tags)
-  MapIf maptags _ tags x cs 
-    -> do rule <- transRule (RemoveIf MaybeName2 SubrEmpty tags x cs)
+  MapIf nm maptags _ tags x cs 
+    -> do rule <- transRule (RemoveIf nm SubrEmpty tags x cs)
           mts <- transTagSet maptags
           return (map_ rule mts)
-  MapAlways maptags t tags 
-    -> always `fmap` transRule (MapIf maptags t tags MaybeIF_IF [])
+  MapAlways nm maptags t tags 
+    -> always `fmap` transRule (MapIf nm maptags t tags MaybeIF_IF [])
   MatchLemma lem rl       
-    -> do rule@(R.R _ _ trg _) <- transRule rl 
+    -> do rule@(R.R _ _ trg _ _) <- transRule rl 
           let lemTag = R.Lem lem
           return (newTrg rule (addTag lemTag trg))
   MatchWF wf rl       
-    -> do rule@(R.R _ _ trg _) <- transRule rl 
+    -> do rule@(R.R _ _ trg _ _) <- transRule rl 
           let wfTag = R.WF (showWF wf)
           return (newTrg rule (addTag wfTag trg))
   
@@ -141,9 +141,12 @@ transRule x = case x of
     addTag tag (C.Set nm ts) = C.Set nm (C.Or [C.And [tag]] `mappend` ts)
     addTag tag _             = error "addTag: TODO I should implement other set operations for targets"
 
+    transName (ObligatoryName ((ln,col), ":dummyName")) = (R.NoName, ln)
+    transName (ObligatoryName ((ln,col), nm))          = (R.Name nm,ln)
 
-    transName (MaybeName1 (ComplexId nm)) = R.Name nm
-    transName MaybeName2                  = R.NoName
+
+    --transName (MaybeName1 (ComplexId nm)) = R.Name nm
+    --transName MaybeName2                  = R.NoName
 
 
 

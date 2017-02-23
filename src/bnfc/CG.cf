@@ -64,16 +64,19 @@ SetUnif.  Id ::= "$$" Id ; -- Unification
 
 RuleDef. Def ::= Rule ;
 
-SelectIf.     Rule ::= "SELECT" MaybeName Subr TagSet MaybeIF [Cond] ";" ;
-RemoveIf.     Rule ::= "REMOVE" MaybeName Subr TagSet MaybeIF [Cond] ";" ;
-SelectAlways. Rule ::= "SELECT" MaybeName Subr TagSet ";" ;
-RemoveAlways. Rule ::= "REMOVE" MaybeName Subr TagSet ";" ;
-MapIf.        Rule ::= "MAP" TagSet MaybeTrg TagSet MaybeIF [Cond] ";" ;
-MapAlways.    Rule ::= "MAP" TagSet MaybeTrg TagSet ";" ;
+SelectIf.     Rule ::= "SELECT" ObligatoryName Subr TagSet MaybeIF [Cond] ";" ;
+RemoveIf.     Rule ::= "REMOVE" ObligatoryName Subr TagSet MaybeIF [Cond] ";" ;
+SelectAlways. Rule ::= "SELECT" ObligatoryName Subr TagSet ";" ;
+RemoveAlways. Rule ::= "REMOVE" ObligatoryName Subr TagSet ";" ;
+MapIf.        Rule ::= "MAP" ObligatoryName TagSet MaybeTrg TagSet MaybeIF [Cond] ";" ;
+MapAlways.    Rule ::= "MAP" ObligatoryName TagSet MaybeTrg TagSet ";" ;
 MatchLemma.   Rule ::= String Rule ; 
 MatchWF.      Rule ::= WordForm Rule ;
 
 rules MaybeIF   ::= "IF" | "if" | ;
+
+position token ObligatoryName ( ':' (char - [" "])* ) ;
+
 rules MaybeName ::= ":" ComplexId | ;
 rules MaybeTrg  ::= "TARGET" | ;
 

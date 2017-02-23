@@ -16,6 +16,7 @@ data Rule =
       , name :: Name
       , target :: TagSet
       , context :: AndList Context
+      , linenum :: Int
       } deriving (Eq,Ord)
 
 data Oper = SELECT | REMOVE | IFF | ADD | MAP TagSet | SUBSTITUTE
@@ -29,10 +30,10 @@ instance Show Name where
   show (Name s) = ':':s
 
 instance Show Rule where
-  show (R t n trg (And [Always])) = printf "%s%s %s ;"  (show t) (show n) (show trg)
-  show (R (MAP mts) n trg c) = printf "MAP%s %s TARGET %s IF %s" (show n) (show mts)
+  show (R t n trg (And [Always]) _ln) = printf "%s%s %s ;"  (show t) (show n) (show trg)
+  show (R (MAP mts) n trg c _ln) = printf "MAP%s %s TARGET %s IF %s" (show n) (show mts)
                                                                  (show trg) (show c)
-  show (R t n trg c) = printf "%s%s %s IF %s ;" (show t) (show n) (show trg) (show c)
+  show (R t n trg c ln) = printf "%s%s %s IF %s ; \t # line %s" (show t) (show n) (show trg) (show c) (show ln)
 
 --------------------------------------------------------------------------------
 -- Tags and tagsets
