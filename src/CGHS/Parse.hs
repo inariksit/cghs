@@ -197,8 +197,9 @@ showTag t = case t of
   WordF w   -> showWF w
   LemmaCI l -> "\"" ++ l ++ "\"i"
   WordFCI w -> show w ++ "i"
-
   Regex r   -> "\"" ++ r ++ "\"r"
+  RegexCI r   -> "\"" ++ r ++ "\"ri"
+  RegexIC r   -> "\"" ++ r ++ "\"ir"
 
 transTag :: Tag -> TagList
 transTag tag = case tag of
@@ -212,8 +213,8 @@ transTag tag = case tag of
   l@(LemmaCI _) -> C.And [R.Rgx (showTag l)]
   w@(WordFCI _) -> C.And [R.Rgx (showTag w)]
   r@(Regex   _) -> C.And [R.Rgx (showTag r)] 
-
-
+  r@(RegexCI _) -> C.And [R.Rgx (showTag r)] 
+  r@(RegexIC _) -> C.And [R.Rgx (showTag r)] 
 
 transTagSet :: TagSet -> State Env R.TagSet
 transTagSet tagset = case tagset of
