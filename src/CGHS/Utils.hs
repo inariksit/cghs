@@ -127,6 +127,7 @@ removeLexReading (And rd) = (And nolx, lx)
 isLex :: Tag -> Bool
 isLex (Lem _) = True
 isLex (WF _)  = True
+isLex (Rgx _) = True
 isLex _       = False
 
 --------------------------------------------------------------------------------
