@@ -30,7 +30,8 @@ printGrammar :: Bool -> String -> String
 printGrammar compact s = case pGrammar (CG.Par.myLexer s) of
   Bad err  -> error err
   Ok  tree -> let defs = evalState (parseRules compact tree) emptyEnv
-              in concatMap (unlines.map show') defs
+              in  "DELIMITERS = \"<$.>\"<PUNT_PUNT>\" \"<$?>\"<PUNT_GALD>\" \"<$!>\"<PUNT_ESKL>\" <<s>> <</s>>;"
+                  ++ (intercalate "\nSECTION\n" $ map (unlines.map show') defs)
 
  where
   show' :: Either String R.Rule -> String

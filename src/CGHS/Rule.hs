@@ -30,7 +30,7 @@ instance Show Name where
 
 instance Show Rule where
   show (R t n trg (And [Always])) = printf "%s%s %s ;"  (show t) (show n) (show trg)
-  show (R (MAP mts) n trg c) = printf "MAP%s %s TARGET %s IF %s" (show n) (show mts)
+  show (R (MAP mts) n trg c) = printf "MAP%s %s TARGET %s IF %s ;" (show n) (show mts)
                                                                  (show trg) (show c)
   show (R t n trg c) = printf "%s%s %s IF %s ;" (show t) (show n) (show trg) (show c)
 
