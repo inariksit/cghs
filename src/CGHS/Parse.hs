@@ -5,7 +5,9 @@ module CGHS.Parse (
 
 import qualified CGHS.Containers as C
 import qualified CGHS.Rule as R
+import CGHS.Utils ( tagSet2Readings )
 import CGHS.Compact
+
 import CG.Abs
 import CG.Lex
 import CG.Par
@@ -16,6 +18,8 @@ import Control.Monad.State.Lazy
 import Data.Either
 import Data.List
 import Data.Maybe
+
+import Debug.Trace
 
 type Result = ([(String,R.TagSet)], [[R.Rule]]) -- sections
 
@@ -55,7 +59,8 @@ parseSection compact (Defs defs) =
 data Env = Env { rules ::[R.Rule]
                , tagsets :: [(String, R.TagSet)]
 --               , inlineTagsets :: [R.TagSet] -- keep track of inline tag sets
-               , templates :: [(String, R.Context)] }
+               , templates :: [(String, R.Context)] 
+               }
 
 emptyEnv = Env [] [] []
 
@@ -72,7 +77,7 @@ getSet :: (Env -> [(String,a)]) -> String -> State Env (Maybe a)
 getSet f nm = lookup nm `fmap` gets f
 
 
--- maybe someday I want to do something with the Strings; now I'm just ignoring them
+-- The strings are used for printGrammar
 addDecl :: Bool -> Def -> State Env (Either String R.Rule)
 addDecl compact def = case def of
    TemplDef t -> do transTemplDecl t >>= putTempl
@@ -168,7 +173,7 @@ transSetDecl :: SetDecl -> State Env (String, String, R.TagSet)
 transSetDecl setdecl =
   case setdecl of 
     Set nm tagset -> (,,) "SET" (showId nm) `fmap` transTagSet tagset
-    List nm tags  -> do let tagLists = map transTag tags :: [TagList]
+    List nm tags  -> do tagLists <- mapM transTagList tags
                         let setName = showId nm
                         return ("LIST", setName, C.Set (C.SetName setName) (C.Or tagLists))
 
@@ -186,7 +191,6 @@ transTemplDecl templ = case templ of
 -- Tags and tagsets
 
 type TagList = C.AndList R.Tag
-
 
 showTag :: Tag -> String
 showTag t = case t of
@@ -207,7 +211,7 @@ transTag tag = case tag of
   BOS -> C.And [R.BOS]
   EOS -> C.And [R.EOS]
   And tags -> C.And $ concatMap (C.getAndList . transTag) tags
-  s@(Tag (SetSynt _)) -> C.And [R.Synt (showTag s)] --TODO if this turns out important, handle it better
+  s@(Tag (SetSynt _)) -> C.And [R.Synt (showTag s)]
   t@(Tag name) -> C.And [R.Tag (showTag t)]
   l@(Lemma nm) -> C.And [R.Lem (showTag l)]
   w@(WordF nm) -> C.And [R.WF (showTag w)]
@@ -216,6 +220,35 @@ transTag tag = case tag of
   r@(Regex   _) -> C.And [R.Rgx (showTag r)] 
   r@(RegexCI _) -> C.And [R.Rgx (showTag r)] 
   r@(RegexIC _) -> C.And [R.Rgx (showTag r)] 
+
+transTagList :: Tag -> State Env TagList
+transTagList tag = case tag of
+  And ts -> do let tagNames = map showTag ts
+               maybeTagsets <- mapM (getSet tagsets) tagNames
+               case catMaybes maybeTagsets of
+                [] -> --trace ("transTagSet: All good " ++ show tag) $ 
+                       return (transTag tag)
+                xs -> do -- The name has been found as a tagset name.
+                         -- We perform an additional check: if it is just a list name that maps to itself,
+                         -- e.g. LIST Adj = Adj (maybe something else) ; then it's valid.
+                         nameMatches <- sequence 
+                                         [ do set <- getSet tagsets name :: State Env (Maybe R.TagSet)
+                                              case set of
+                                                Nothing -> return (name,True) -- Nothing found, ie. it's not a tag name after all (why did it get into here in the first place?)
+                                                Just s  -> do let setdefString = C.showInline s
+                                                              return $ if name `isInfixOf` setdefString
+                                                                        then (name ++ " = " ++ setdefString,True)
+                                                                        else (name ++ " = " ++ setdefString,False)
+
+                                                     | name <- tagNames ]
+                         let nameDoesntMatch = filter (not.snd) nameMatches
+                         return $
+                             if null nameDoesntMatch
+                              then transTag tag
+                              else trace ("\ntransTagSet: Using a set name in place of a single tag: " ++ CG.Print.printTree tag ++ "\n" ++ show (map fst nameDoesntMatch)) 
+                                      $ transTag tag
+  _        -> return (transTag tag)
+
 
 transTagSet :: TagSet -> State Env R.TagSet
 transTagSet tagset = case tagset of
@@ -226,11 +259,16 @@ transTagSet tagset = case tagset of
 
   -- A tagset consisting of a single tag could be just that, or a named tagset.
   -- No way to decide that by the shape of the identifier, hence trying both ways.
-  Named tag   -> do let tagName = showTag tag
-                    tags <- getSet tagsets tagName
-                    return $ case tags of
-                      Just ts -> ts
-                      Nothing -> C.Set C.Inline (C.Or [transTag tag])
+  Named t@(And tags) 
+            -> do taglist <- transTagList t
+                  return $ C.Set C.Inline (C.Or [taglist])
+
+  Named tag -> do let tagName = showTag tag
+                  tags <- getSet tagsets tagName
+                  return $ case tags of
+                             Just ts -> ts
+                             Nothing -> C.Set C.Inline (C.Or [transTag tag])
+
 
 --------------------------------------------------------------------------------
 -- Contextual tests
