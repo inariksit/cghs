@@ -130,6 +130,7 @@ isLex (WF _)  = True
 isLex (Rgx _) = True
 isLex _       = False
 
+
 --------------------------------------------------------------------------------
 -- Contextual tests
 
@@ -196,8 +197,8 @@ parseReadingApe = And . map readTag . filter (not.null) . split (=='<')
 -- the relations, just want to know all different readings someone ever wrote.
 tagSet2Readings :: TagSet -> [Reading]
 tagSet2Readings ts = case normaliseTagsetRel ts of
-  Set _ rds    -> getOrList rds
-  All        -> [] --TODO ??
+  All        -> []
+  Set _ rds  -> getOrList rds
   Diff rs ts -> tagSet2Readings rs ++ tagSet2Readings ts -- TODO
 
 
