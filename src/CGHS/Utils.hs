@@ -121,8 +121,7 @@ includes :: (Eq a, Foldable t) => t a -> t a -> Bool
 includes t1 t2 = all (`elem` t1) t2
 
 removeLexReading :: Reading -> (Reading, [Tag])
-removeLexReading (And rd) = (And nolx, lx)
- where (lx,nolx) = partition isLex rd
+removeLexReading = filterReading (not.isLex)
 
 isLex :: Tag -> Bool
 isLex (Lem _) = True
@@ -130,6 +129,9 @@ isLex (WF _)  = True
 isLex (Rgx _) = True
 isLex _       = False
 
+filterReading :: (Tag -> Bool) -> Reading -> (Reading, [Tag])
+filterReading p (And rd) = (And good, bad)
+  where (good,bad) = partition p rd
 
 --------------------------------------------------------------------------------
 -- Contextual tests

@@ -17,6 +17,7 @@ module CGHS (
 
   -- ** Reading
   , Reading
+  , filterReading
   , removeLexReading
   , parseReadingApe
   , parseReadingApeSubr
