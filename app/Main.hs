@@ -12,12 +12,13 @@ main = do args <- getArgs
                         text <- readFile rls 
                         let compact = False
 
-                        --let gr = printGrammar True text
-                        --putStrLn gr
+                        let gr = printGrammar compact text
+                        putStrLn gr
 
                         let (defs,rules) = parse compact text
+                        mapM_ (mapM_ print) (take 5 rules)
                         --mapM_ print defs
-                        putStrLn ""
+{-                        putStrLn ""
                         let repTsets = [ (def, groupRepetitiveTagset def)
                                          | (name,def) <- defs
                                          , not $ null (groupRepetitiveTagset def) ]                          
@@ -26,27 +27,10 @@ main = do args <- getArgs
                                       ++ (show x ++ " = " ++ showInline x)
                                       ++ "\nPossibilities for regrouping:"
                                       ++ "\n-----------------------------\n"
-                                      ++ unlines (map show y))
-                              
+                                      ++ unlines (map showInline y))
                         mapM_ (putStrLn.show') repTsets
 
-{-                        let compactDefs = [ compactTagset def
-                                            | (name,def) <- defs ]
 
-                        let diffDefs = [ (nm,odef,comp) 
-                                        | ((nm,odef),comp) <- zip defs compactDefs
-                                        , odef /= comp ]
-
-                        mapM_ (\(nm,def,c) -> do putStrLn "\nOriginal definition:"
-                                                 putStrLn (nm ++ " = " ++ showInline def)
-                                                 putStrLn "Compacted some tagsets:"
-                                                 putStrLn (nm ++ " = " ++ showInline c)
-                              ) diffDefs
-
-                        let repDefs = [ (,) (nm,def) [ (rd,occs)
-                                          | (rd,occs) <- findRepetition def 
-                                          , occs > 2 ]
-                                        | (nm,def) <- defs ]
                         --mapM_ (mapM_ print) rules
                         --mapM_ (\((nm,def),occs) -> case occs of
                         --         [] -> return ()
@@ -58,21 +42,21 @@ main = do args <- getArgs
                         --                   putStrLn "-----\n"
                         --      ) repDefs
 
-                        putStrLn "\n\n\n"
-                        let compRules = map compactRule (concat rules)
-                        let diffRules = [ show orig ++ "\n\t" ++  show comp ++ "\n"
-                                           | (orig,comp) <- zip (concat rules) compRules
-                                           , orig /= comp ]                        
-                        --mapM_ putStrLn diffRules
-                        print (length diffRules)
+                        --putStrLn "\n\n\n"
+                        --let compRules = map compactRule (concat rules)
+                        --let diffRules = [ show orig ++ "\n\t" ++  show comp ++ "\n"
+                        --                   | (orig,comp) <- zip (concat rules) compRules
+                        --                   , orig /= comp ]                        
+                        ----mapM_ putStrLn diffRules
+                        --print (length diffRules)
 
 
-                        --putStrLn "Grouping rules by targets"
+                        putStrLn "Grouping rules by targets"
                         --let groupedRlsBySection = map groupRules rules 
-                        --let groupedRls = map (reverse . sortByContext) $
-                        --				  groupRules (concat rules) :: [[Rule]]
-                        ----print (elems groupledRls)
-                        --mapM_ (\x -> mapM_ print x >> putStrLn "\n") groupedRls
+                        let groupedRls = map ( sortByContext) $
+                                 				  groupRules (concat rules) :: [[Rule]]
+                        --print (elems groupledRls)
+                        mapM_ (\x -> mapM_ print x >> putStrLn "\n") groupedRls
                         putStrLn "done"
 -}
             _     -> error "Usage: stack exec read-cg <rules.rlx>"
