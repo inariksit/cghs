@@ -18,8 +18,6 @@ import Data.Monoid ( mappend )
 -- Find repetitive tagsets, and try to compact them
 
 
---compactGrammar :: 
-
 
 -- | Checks if some definition occurs many times in the same tagset,
 -- and outputs the results in order from most repetitive. 
@@ -58,7 +56,9 @@ groupRepetitiveTagset t@(Set _ (Or ts)) = map (compactTagset explicitMai) tsByRe
 -- | Finds tagsets that are identical except for case and such, converts them into regex
 compactStrings :: Bool -> TagSet -> TagSet
 compactStrings changeOnlyExplicitMai = transformSet nubOr . fmap regexReading
+                                                -- (nubOr . anyTag) fmap noLexReading 
  where
+  
   nubOr :: OrList Reading -> OrList Reading
   nubOr (Or [r]) = Or [r]
   nubOr (Or rs) = Or $
@@ -66,6 +66,14 @@ compactStrings changeOnlyExplicitMai = transformSet nubOr . fmap regexReading
      in if sgrs /= sortBy ordReading rs then sgrs else rs
 
   compLen x y = length (show x) `compare` length (show y)
+
+  noLexReading :: Reading -> Reading
+  noLexReading rd =     
+    let (nonLexRd,lexTags) = removeLexReading rd
+     in case removeLexReading rd of
+         (nonLexRd,[]) -> nonLexRd
+         (And [],lexTags) -> And lexTags
+         (nonLexRd,lexTags) -> And [Rgx "\".*\"r"] `mappend` nonLexRd 
 
   regexReading :: Reading -> Reading
   regexReading rd =
