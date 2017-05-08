@@ -86,7 +86,9 @@ addDecl compact def = case def of
                     if compact 
                       then do let compactSet = compactStrings False origSet
                               putSet (origSetName, compactSet)
-                              return (Left $ setOrList ++ " " ++ origSetName ++ 
+
+                              return (Left $ "SET " ++ origSetName ++  -- For testing "anything goes" tagsets, don't keep this!
+--                              return (Left $ setOrList ++ " " ++ origSetName ++ 
                                            " = " ++ C.showInline compactSet ++ " ;")
                       else do putSet (origSetName, origSet)
                               return (Left $ CG.Print.printTree s)
@@ -140,6 +142,7 @@ transRule x = case x of
   where
     always rl = rl { R.context = C.And [R.Always] }
     select rl = rl { R.oper = R.SELECT}
+    iff rl = rl { R.oper = R.IFF }
     map_ rl ts = rl { R.oper = R.MAP ts }
     newTrg rl ts = rl { R.target = ts }
 
