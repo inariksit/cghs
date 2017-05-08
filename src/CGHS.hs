@@ -5,7 +5,9 @@ module CGHS (
   , parse 
   , printGrammar
   , groupRules
+  , filterRule
   , sortByContext
+
 
   -- ** Tagset
   , Tag(..), TagSet

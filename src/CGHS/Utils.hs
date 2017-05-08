@@ -17,7 +17,18 @@ import Data.Monoid ( mappend )
 --------------------------------------------------------------------------------
 -- Operations on rules
 
+filterRule :: (Tag -> Bool) -> Rule -> Rule
+filterRule p rl = rl { target  = transformSet (fmap (filterReading p)) (target rl)
+                     , context = fmap (filterContext p) (context rl) }
 
+
+filterContext :: (Tag -> Bool) -> Context -> Context
+filterContext p ctx = case ctx of
+  Ctx _ _ ts  -> ctx { tags = transformSet (fmap (filterReading p)) ts }
+  Link cs     -> Link (filterContext p `fmap` cs)
+  Template cs -> Template (filterContext p `fmap` cs)
+  Negate c    -> Negate (filterContext p c)
+  Always      -> Always
 ---------------------------
 -- Roughly equivalent rules
 
@@ -120,18 +131,24 @@ intersRds rds rds' = Or $ catMaybes [ rd `moreSpecified` rd'
 includes :: (Eq a, Foldable t) => t a -> t a -> Bool
 includes t1 t2 = all (`elem` t1) t2
 
+-- Filter operations for readings
+
+filterReading :: (Tag -> Bool) -> Reading -> Reading
+filterReading p = fst . partitionReading p
+
+partitionReading :: (Tag -> Bool) -> Reading -> (Reading, [Tag])
+partitionReading p (And rd) = (And good, bad)
+  where (good,bad) = partition p rd
+
+-- Special filter for lexical forms
 removeLexReading :: Reading -> (Reading, [Tag])
-removeLexReading = filterReading (not.isLex)
+removeLexReading = partitionReading (not.isLex)
 
 isLex :: Tag -> Bool
 isLex (Lem _) = True
 isLex (WF _)  = True
 isLex (Rgx _) = True
 isLex _       = False
-
-filterReading :: (Tag -> Bool) -> Reading -> (Reading, [Tag])
-filterReading p (And rd) = (And good, bad)
-  where (good,bad) = partition p rd
 
 --------------------------------------------------------------------------------
 -- Contextual tests
