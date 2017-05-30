@@ -17,7 +17,7 @@ main = do args <- getArgs
 
                         let (defs,rules) = parse compact text
                         --mapM_ print defs
-                        putStrLn ""
+{-                         putStrLn ""
                         let repTsets = [ (def, groupRepetitiveTagset def)
                                          | (name,def) <- defs
                                          , not $ null (groupRepetitiveTagset def) ]                          
@@ -30,7 +30,7 @@ main = do args <- getArgs
                               
                         mapM_ (putStrLn.show') repTsets
 
-{-                        let compactDefs = [ compactTagset def
+                       let compactDefs = [ compactTagset def
                                             | (name,def) <- defs ]
 
                         let diffDefs = [ (nm,odef,comp) 
@@ -65,16 +65,16 @@ main = do args <- getArgs
                                            , orig /= comp ]                        
                         --mapM_ putStrLn diffRules
                         print (length diffRules)
-
-
-                        --putStrLn "Grouping rules by targets"
-                        --let groupedRlsBySection = map groupRules rules 
-                        --let groupedRls = map (reverse . sortByContext) $
-                        --				  groupRules (concat rules) :: [[Rule]]
-                        ----print (elems groupledRls)
-                        --mapM_ (\x -> mapM_ print x >> putStrLn "\n") groupedRls
-                        putStrLn "done"
 -}
+
+                        putStrLn "Grouping rules by targets"
+                        let groupedRlsBySection = map groupRules rules 
+                        let groupedRls = map (reverse . sortByContext) $
+                        				  groupRules (concat rules) :: [[Rule]]
+                        --print (elems groupledRls)
+                        mapM_ (\x -> mapM_ print x >> putStrLn "\n") groupedRls
+                        putStrLn "done"
+
             _     -> error "Usage: stack exec read-cg <rules.rlx>"
 
 
