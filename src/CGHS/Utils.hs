@@ -48,6 +48,11 @@ groupRules :: [Rule] -> [[Rule]]
 groupRules rls = elems $ fromListWith (++) 
                     [ (rl, [trgEq rl]) | rl <- map TrgEq rls ]
 
+-- Get all rules with the same target as the given rule
+sameTrgRules :: Rule -> [Rule] -> [Rule]
+sameTrgRules rl rls = fmap trgEq $ 
+  (== (TrgEq rl)) `filter` fmap TrgEq rls
+
 -- Sort rules by the length of context. 
 sortByContext :: [Rule] -> [Rule]
 sortByContext = sortBy compareByContext
