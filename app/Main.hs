@@ -1,13 +1,19 @@
 module Main where
 
-import CGHS ( Rule(..), TagSet, parse, printGrammar, groupRules, sortByContext, showInline )
+import CGHS ( Rule(..), TagSet, parse, printGrammar, groupRules, sortByContext, showInline, filterRule )
 import CGHS.Compact ( findRepetition, compactTagset, compactRule, compactStrings, groupRepetitiveTagset ) 
 import System.Environment ( getArgs )
+import CGHS.Rule
 
 
 main :: IO ()
 main = do args <- getArgs
           case args of
+            ["filter"] -- Testing filterRule
+                  -> do let rls = parse False "SELECT DET IF (-1C IZE + @KM>) ;"
+                        let rl = head $ head $ snd rls
+                        print (filterRule (\tag -> tag == Synt "@KM>") rl)
+
             [rls] -> do --E.setLocaleEncoding E.utf8 --maybe I'll need it later?
                         text <- readFile rls 
                         let compact = False
@@ -59,6 +65,8 @@ main = do args <- getArgs
                         mapM_ (\x -> mapM_ print x >> putStrLn "\n") groupedRls
                         putStrLn "done"
 -}
+
+
             _     -> error "Usage: stack exec read-cg <rules.rlx>"
 
 
